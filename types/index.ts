@@ -1,0 +1,35 @@
+export type BucketColorKey = 'lime' | 'orange' | 'lavender' | 'coral' | 'sky' | 'mint' | 'gold' | 'rose' | 'neutral';
+
+export type Bucket = {
+  id: string;
+  name: string;
+  icon: string; // Phosphor icon name
+  colorKey: BucketColorKey;
+  currentAmount: number; // cents
+  targetAmount: number; // cents
+  isMain?: boolean;
+  createdAt: string; // ISO 8601
+  order: number;
+};
+
+export type Wallet = {
+  id: string;
+  userId: string;
+  totalBalance: number; // cents
+  unallocatedBalance: number; // cents
+};
+
+export type TransactionType =
+  | 'deposit'
+  | 'withdrawal'
+  | 'transfer_in'
+  | 'transfer_out';
+
+export type Transaction = {
+  id: string;
+  bucketId: string | null;
+  type: TransactionType;
+  amount: number; // cents, always positive
+  description: string;
+  createdAt: string; // ISO 8601
+};
