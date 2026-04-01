@@ -226,32 +226,32 @@ The **Main Bucket** is a special system bucket that always exists and cannot be 
 
 ---
 
-### 3.5 Auto-Funding
+### 3.5 Auto-Deposit (Bucket → Bucket)
 
-Two types of automated funding:
+Recurring automated transfers between buckets. Accessible from bucket detail → More → Auto-Deposit.
 
-#### Auto-Deposit (External Bank → Wallet)
-- User sets:
-  - External bank account (source)
-  - Amount per transfer
-  - Frequency: **Daily**, **Weekly** (pick day), or **Monthly** (pick date)
-- Funds land in main balance
-- **MVP:** Supabase cron adds funds instantly (mock deposit).
-- **Production:** Supabase cron triggers Column ACH pull. Funds land once settled.
+#### Setup Flow
+- **From**: Any bucket with funds (defaults to Main Bucket, changeable via picker)
+- **To**: The current bucket (locked, cannot change)
+- **Amount**: Fixed amount per deposit
+- **Frequency**: Daily, Weekly, Bi-weekly, Monthly
+- **End condition**:
+  - When bucket is full (auto-stops when target reached)
+  - After 3 months
+  - After 6 months
+  - After 1 year
+  - Never (runs indefinitely)
 
-#### Auto-Fund (Wallet → Bucket)
-- Internal distribution rule (app-level, no Column API call needed)
-- User sets:
-  - Source: Main Balance
-  - Destination: specific Bucket
-  - Amount per transfer
-  - Frequency: **Daily**, **Weekly**, or **Monthly**
-- Executes automatically (Supabase cron / Edge Function)
-- Stops when bucket target is reached (optional toggle)
+#### Auto-Deposit from External Bank
+- Separate flow via Add Funds → Bank Account
+- User sets amount + frequency for recurring ACH pulls
+- Funds land in Main Bucket
+- **MVP:** Mock instant deposits via Supabase cron
+- **Production:** Column ACH scheduled transfers
 
 #### Management
-- View all active auto-funding rules
-- Edit amount, frequency, or destination
+- View all active auto-deposit rules
+- Edit amount, frequency, or end condition
 - Pause or delete rules
 
 ---
@@ -278,9 +278,32 @@ Two types of automated funding:
 
 #### Settings
 - **Dark Mode** toggle (system, light, dark)
-- **Notifications** — push notification preferences (TBD specifics)
+- **Notifications** — push notification category toggles (see below)
 - **Linked Accounts** — manage connected external bank accounts
 - **Security** — change password, biometric lock (future)
+
+#### Push Notifications (No In-App Inbox)
+
+Push-only strategy — no notification center in the app. Transaction history serves as the activity log. Users control categories in Account → Notifications.
+
+**Notification Events:**
+- **Auto-deposit executed** — "$25 deposited to Tokyo Trip"
+- **Bucket goal reached** — "Tokyo Trip is fully funded!"
+- **Large deposit received** — "$500 added to Main Bucket"
+- **Auto-deposit failed** — "Auto-deposit to Tokyo Trip failed — insufficient funds"
+- **Auto-deposit paused reminder** — "Your auto-deposit has been paused for 7 days"
+- **Weekly savings summary** — "You saved $150 this week across 3 buckets"
+- **Low balance alert** — "Main Bucket balance is below $50"
+
+**User-configurable categories:**
+- Auto-deposits (on/off)
+- Goal reached (on/off)
+- Weekly summary (on/off)
+- Low balance alerts (on/off)
+
+**Implementation (Production):**
+- Expo Push Notifications + Supabase Edge Functions
+- Push tokens stored in Supabase, notifications triggered by cron jobs and webhooks
 
 #### Logout
 - Clear session, return to welcome screen

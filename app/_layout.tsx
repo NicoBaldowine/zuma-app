@@ -68,9 +68,10 @@ export default function RootLayout() {
           name="more-actions"
           options={{
             presentation: 'formSheet',
-            sheetAllowedDetents: 'fitToContents',
+            sheetAllowedDetents: [0.45],
             sheetGrabberVisible: true,
             sheetCornerRadius: 30,
+            sheetExpandsWhenScrolledToEdge: false,
           }}
         />
         <Stack.Screen
@@ -87,6 +88,14 @@ export default function RootLayout() {
         />
         <Stack.Screen
           name="move-funds"
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="auto-deposit"
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="edit-auto-deposit"
           options={{ presentation: 'modal' }}
         />
         <Stack.Screen
@@ -111,6 +120,14 @@ export default function RootLayout() {
         />
         <Stack.Screen
           name="account"
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="notification-preferences"
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="custom-color"
           options={{ presentation: 'modal' }}
         />
         <Stack.Screen

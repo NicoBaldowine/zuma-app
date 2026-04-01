@@ -1,4 +1,4 @@
-export type BucketColorKey = 'lime' | 'orange' | 'lavender' | 'coral' | 'sky' | 'mint' | 'gold' | 'rose' | 'neutral';
+export type BucketColorKey = 'lime' | 'orange' | 'lavender' | 'coral' | 'sky' | 'mint' | 'gold' | 'rose' | 'peach' | 'teal' | 'indigo' | 'neutral' | 'custom';
 
 export type Bucket = {
   id: string;
@@ -18,6 +18,9 @@ export type Wallet = {
   totalBalance: number; // cents
   unallocatedBalance: number; // cents
 };
+
+export type AutoDepositFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly';
+export type AutoDepositEnd = 'bucket_full' | '3_months' | '6_months' | '1_year' | 'never';
 
 export type TransactionType =
   | 'deposit'

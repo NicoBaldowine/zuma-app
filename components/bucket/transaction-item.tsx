@@ -46,8 +46,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   description: {
-    fontSize: 16,
-    fontFamily: Fonts.medium,
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
   },
   date: {
     fontSize: 13,

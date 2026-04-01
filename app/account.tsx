@@ -29,7 +29,7 @@ const sections: { title: string; items: SectionItem[] }[] = [
   {
     title: 'Preferences',
     items: [
-      { key: 'notifications', label: 'Notifications', icon: Bell },
+      { key: 'notifications', label: 'Notifications', icon: Bell, sublabel: 'Push alerts' },
       { key: 'appearance', label: 'Appearance', icon: Moon, sublabel: 'Dark' },
       { key: 'language', label: 'Language', icon: Globe, sublabel: 'English' },
     ],
@@ -65,6 +65,10 @@ export default function AccountScreen() {
   const surfaceColor = useThemeColor({}, 'surface');
   const secondaryColor = useThemeColor({}, 'textSecondary');
   function handleItem(key: string) {
+    if (key === 'notifications') {
+      router.push('/notification-preferences');
+      return;
+    }
     if (key === 'appearance') {
       router.push('/appearance');
       return;

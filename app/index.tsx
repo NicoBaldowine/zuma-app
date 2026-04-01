@@ -22,7 +22,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getBucketPalette } from '@/constants/bucket-colors';
 import { Fonts } from '@/constants/theme';
 import { BalanceDisplay, ActionBar } from '@/components/home';
-import { BucketCardStack, BucketCardExpanded, BucketDetailContent, BottomActions, StatsRow } from '@/components/bucket';
+import { BucketCardStack, BucketCardExpanded, BucketDetailContent, BottomActions, StatsRow, AutoDepositCard } from '@/components/bucket';
 import { calcProgress, formatCurrency } from '@/utils/format';
 import { mockWallet, mockBuckets } from '@/data/mock';
 import type { Bucket } from '@/types';
@@ -174,8 +174,24 @@ export default function HomeScreen() {
               </Animated.View>
             )}
 
+            {/* Auto-deposit card — mock: show for first non-main bucket */}
+            {!activeBucket.isMain && activeBucket.id === 'bucket-7' && (
+              <Animated.View
+                entering={FadeInDown.duration(400).delay(activeBucket.isMain ? 80 : 140).easing(Easing.out(Easing.cubic))}
+                style={styles.detailBlock}
+              >
+                <AutoDepositCard
+                  frequency="daily"
+                  endCondition="bucket_full"
+                  amount="25"
+                  colorKey={activeBucket.colorKey}
+                  onEdit={() => router.push('/edit-auto-deposit')}
+                />
+              </Animated.View>
+            )}
+
             <Animated.View
-              entering={FadeInDown.duration(400).delay(activeBucket.isMain ? 80 : 160).easing(Easing.out(Easing.cubic))}
+              entering={FadeInDown.duration(400).delay(activeBucket.isMain ? 80 : 200).easing(Easing.out(Easing.cubic))}
               style={styles.detailBlock}
             >
               <BucketDetailContent bucket={activeBucket} />

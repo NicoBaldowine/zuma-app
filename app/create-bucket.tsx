@@ -22,7 +22,7 @@ import { getBucketIcon, BUCKET_ICON_LIST } from '@/utils/bucket-icons';
 import type { BucketColorKey } from '@/types';
 
 const COLOR_KEYS: BucketColorKey[] = [
-  'lime', 'gold', 'orange', 'coral', 'rose', 'lavender', 'sky', 'mint',
+  'lime', 'gold', 'orange', 'coral', 'rose', 'lavender', 'sky', 'mint', 'peach', 'teal', 'indigo',
 ];
 
 export default function CreateBucketScreen() {
@@ -225,11 +225,11 @@ function IconPickerModal({ visible, onClose, selectedIcon, onSelect }: {
 function ColorPickerModal({ visible, onClose, selectedColor, onSelect }: {
   visible: boolean; onClose: () => void; selectedColor: BucketColorKey | null; onSelect: (color: BucketColorKey) => void;
 }) {
+  const router = useRouter();
   const bgColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const surfaceColor = useThemeColor({}, 'surface');
   const secondaryColor = useThemeColor({}, 'textSecondary');
-  const insets = useSafeAreaInsets();
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -266,6 +266,17 @@ function ColorPickerModal({ visible, onClose, selectedColor, onSelect }: {
               </Pressable>
             );
           })}
+
+          {/* Custom color */}
+          <Pressable
+            onPress={() => { onClose(); router.push('/custom-color'); }}
+            style={styles.colorItem}
+          >
+            <View style={[styles.colorCircle, styles.customCircle, { borderColor: secondaryColor }]}>
+              <Text style={[styles.customPlus, { color: secondaryColor }]}>+</Text>
+            </View>
+            <Text style={[styles.colorName, { color: secondaryColor }]}>Custom</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -437,6 +448,15 @@ const styles = StyleSheet.create({
   },
   colorName: {
     fontSize: 12,
+    fontFamily: Fonts.medium,
+  },
+  customCircle: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+  },
+  customPlus: {
+    fontSize: 24,
     fontFamily: Fonts.medium,
   },
 });

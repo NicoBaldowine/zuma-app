@@ -1,6 +1,6 @@
 import { StyleSheet, View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { CreditCard, Shuffle, PencilSimple, Trash } from 'phosphor-react-native';
+import { CreditCard, Repeat, PencilSimple, Trash } from 'phosphor-react-native';
 
 import { SheetListItem } from '@/components/shared';
 
@@ -20,7 +20,7 @@ export default function MoreActionsSheet() {
   return (
     <View style={styles.container}>
       <SheetListItem icon={CreditCard} label="Virtual Card" onPress={() => { router.back(); router.push('/virtual-card'); }} />
-      <SheetListItem icon={Shuffle} label="Move Funds" onPress={() => { router.back(); router.push('/move-funds'); }} />
+      <SheetListItem icon={Repeat} label="Auto-Deposit" onPress={() => { router.back(); router.push('/auto-deposit'); }} />
       <SheetListItem icon={PencilSimple} label="Edit Bucket" onPress={() => { router.back(); router.push('/edit-bucket'); }} />
       <SheetListItem icon={Trash} label="Delete Bucket" onPress={handleDelete} destructive />
     </View>
@@ -29,7 +29,8 @@ export default function MoreActionsSheet() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 4,
+    flex: 1,
+    paddingTop: 12,
     paddingHorizontal: 8,
   },
 });

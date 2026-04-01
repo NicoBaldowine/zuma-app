@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { X, CaretRight } from 'phosphor-react-native';
+import { X, CaretRight, Check, ArrowDown } from 'phosphor-react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Fonts } from '@/constants/theme';
@@ -75,42 +75,40 @@ export default function AddToBucketScreen() {
       </View>
 
       <View style={styles.pills}>
-        {/* From — tappable */}
         <Pressable
           onPress={() => setFromPickerVisible(true)}
           style={[styles.bucketPill, { backgroundColor: surfaceColor }]}
         >
-          <View style={[styles.pillIcon, { backgroundColor: fromPalette.main }]}>
+          <View style={[styles.pillIcon, { backgroundColor: fromBucket.isMain ? fromPalette.light : fromPalette.main }]}>
             <FromIcon size={14} color={fromPalette.cardText} weight="fill" />
           </View>
           <View style={styles.pillInfo}>
-            <Text style={[styles.pillLabel, { color: secondaryColor }]}>From</Text>
             <Text style={[styles.pillName, { color: textColor }]}>{fromBucket.name}</Text>
+            <Text style={[styles.pillSub, { color: secondaryColor }]}>
+              {formatCurrency(fromBucket.currentAmount)}
+            </Text>
           </View>
-          <Text style={[styles.pillBalance, { color: secondaryColor }]}>
-            {formatCurrency(fromBucket.currentAmount)}
-          </Text>
           <CaretRight size={16} color={secondaryColor} weight="bold" />
         </Pressable>
 
-        {/* To — locked */}
         <View style={[styles.bucketPill, { backgroundColor: surfaceColor }]}>
-          <View style={[styles.pillIcon, { backgroundColor: targetPalette.main }]}>
+          <View style={[styles.pillIcon, { backgroundColor: targetBucket.isMain ? targetPalette.light : targetPalette.main }]}>
             <TargetIcon size={14} color={targetPalette.cardText} weight="fill" />
           </View>
           <View style={styles.pillInfo}>
-            <Text style={[styles.pillLabel, { color: secondaryColor }]}>To</Text>
             <Text style={[styles.pillName, { color: textColor }]}>{targetBucket.name}</Text>
-          </View>
-          <View style={styles.pillBalanceCol}>
-            <Text style={[styles.pillBalanceCurrent, { color: secondaryColor }]}>
-              {formatCurrency(targetBucket.currentAmount)}
-            </Text>
-            <Text style={[styles.pillBalanceTarget, { color: secondaryColor }]}>
-              of {formatCurrency(targetBucket.targetAmount)}
+            <Text style={[styles.pillSub, { color: secondaryColor }]}>
+              {formatCurrency(targetBucket.currentAmount)} of {formatCurrency(targetBucket.targetAmount)}
             </Text>
           </View>
           <CaretRight size={16} color={`${secondaryColor}40`} weight="bold" />
+        </View>
+
+        {/* Arrow overlay — absolute, centered between pills */}
+        <View style={styles.arrowOverlay}>
+          <View style={[styles.arrowCircle, { backgroundColor: surfaceColor, borderColor: bgColor }]}>
+            <ArrowDown size={16} color={secondaryColor} weight="bold" />
+          </View>
         </View>
       </View>
 
@@ -128,6 +126,15 @@ export default function AddToBucketScreen() {
           inputAccessoryViewID={Platform.OS === 'ios' ? INPUT_ACCESSORY_ID : undefined}
         />
       </Pressable>
+
+      <View style={styles.maxRow}>
+        <Pressable
+          onPress={() => setAmount((fromBucket.currentAmount / 100).toString())}
+          style={[styles.maxButton, { backgroundColor: surfaceColor }]}
+        >
+          <Text style={[styles.maxText, { color: secondaryColor }]}>Max</Text>
+        </Pressable>
+      </View>
 
       {/* iOS: button sticks above keyboard natively */}
       {Platform.OS === 'ios' && (
@@ -182,13 +189,22 @@ function FromPickerModal({ visible, onClose, buckets, selectedId, onSelect }: {
             const palette = getBucketPalette(bucket.colorKey);
             const isSelected = bucket.id === selectedId;
             return (
-              <SheetListItem
+              <Pressable
                 key={bucket.id}
-                icon={Icon}
-                label={`${bucket.name}  ·  ${formatCurrency(bucket.currentAmount)}`}
-                selected={isSelected}
                 onPress={() => onSelect(bucket.id)}
-              />
+                style={({ pressed }) => [styles.sourceItem, pressed && { opacity: 0.7 }]}
+              >
+                <View style={[styles.sourceIcon, { backgroundColor: bucket.isMain ? palette.light : palette.main }]}>
+                  <Icon size={18} color={palette.cardText} weight="fill" />
+                </View>
+                <View style={styles.sourceInfo}>
+                  <Text style={[styles.sourceName, { color: textColor }]}>{bucket.name}</Text>
+                  <Text style={[styles.sourceBalance, { color: secondaryColor }]}>
+                    {formatCurrency(bucket.currentAmount)}
+                  </Text>
+                </View>
+                {isSelected && <Check size={20} color={textColor} weight="bold" />}
+              </Pressable>
             );
           })}
         </View>
@@ -224,28 +240,42 @@ const styles = StyleSheet.create({
   pillInfo: {
     flex: 1,
   },
-  pillLabel: {
-    fontSize: 12,
-    fontFamily: Fonts.regular,
+  arrowOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    top: 10,
+    zIndex: 10,
+    pointerEvents: 'none',
+  },
+  arrowCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
   },
   pillName: {
     fontSize: 16,
     fontFamily: Fonts.medium,
   },
-  pillBalance: {
+  pillSub: {
     fontSize: 13,
-    fontFamily: Fonts.medium,
-  },
-  pillBalanceCol: {
-    alignItems: 'flex-end',
-  },
-  pillBalanceCurrent: {
-    fontSize: 13,
-    fontFamily: Fonts.medium,
-  },
-  pillBalanceTarget: {
-    fontSize: 11,
     fontFamily: Fonts.regular,
+  },
+  maxRow: {
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  maxButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  maxText: {
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
   },
   amountContainer: {
     flexDirection: 'row',
@@ -295,6 +325,31 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   modalList: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 20,
+  },
+  sourceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 12,
+  },
+  sourceIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sourceInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  sourceName: {
+    fontSize: 16,
+    fontFamily: Fonts.medium,
+  },
+  sourceBalance: {
+    fontSize: 13,
+    fontFamily: Fonts.regular,
   },
 });

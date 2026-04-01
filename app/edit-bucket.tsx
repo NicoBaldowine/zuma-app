@@ -23,7 +23,7 @@ import { getBucketIcon, BUCKET_ICON_LIST } from '@/utils/bucket-icons';
 import type { BucketColorKey } from '@/types';
 
 const COLOR_KEYS: BucketColorKey[] = [
-  'lime', 'gold', 'orange', 'coral', 'rose', 'lavender', 'sky', 'mint',
+  'lime', 'gold', 'orange', 'coral', 'rose', 'lavender', 'sky', 'mint', 'peach', 'teal', 'indigo',
 ];
 
 export default function EditBucketScreen() {
@@ -207,6 +207,7 @@ function IconPickerModal({ visible, onClose, selectedIcon, onSelect }: {
 function ColorPickerModal({ visible, onClose, selectedColor, onSelect }: {
   visible: boolean; onClose: () => void; selectedColor: BucketColorKey; onSelect: (color: BucketColorKey) => void;
 }) {
+  const router = useRouter();
   const bgColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const surfaceColor = useThemeColor({}, 'surface');
@@ -242,6 +243,16 @@ function ColorPickerModal({ visible, onClose, selectedColor, onSelect }: {
               </Pressable>
             );
           })}
+
+          <Pressable
+            onPress={() => { onClose(); router.push('/custom-color'); }}
+            style={styles.colorItem}
+          >
+            <View style={[styles.colorCircle, styles.customCircle, { borderColor: secondaryColor }]}>
+              <Text style={[styles.customPlus, { color: secondaryColor }]}>+</Text>
+            </View>
+            <Text style={[styles.colorName, { color: secondaryColor }]}>Custom</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -278,4 +289,6 @@ const styles = StyleSheet.create({
   colorItem: { alignItems: 'center', gap: 8, width: 72 },
   colorCircle: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: 'transparent' },
   colorName: { fontSize: 12, fontFamily: Fonts.medium },
+  customCircle: { backgroundColor: 'transparent', borderWidth: 2, borderStyle: 'dashed' as any },
+  customPlus: { fontSize: 24, fontFamily: Fonts.medium },
 });
