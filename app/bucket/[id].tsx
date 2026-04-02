@@ -1,141 +1,244 @@
-import { StyleSheet, ScrollView, View, Text } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState, useCallback, useEffect } from 'react';
+import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
+import { X } from 'phosphor-react-native';
 
 import { getBucketPalette } from '@/constants/bucket-colors';
 import { Fonts } from '@/constants/theme';
 import { calcProgress } from '@/utils/format';
-import { getBucketIcon } from '@/utils/bucket-icons';
-import { StatsRow, TransactionList, BottomActions } from '@/components/bucket';
-import { mockBuckets, mockTransactions } from '@/data/mock';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BucketCardExpanded, BucketDetailContent, BottomActions, StatsRow, AutoDepositCard, VirtualCardDetail } from '@/components/bucket';
+import { useBuckets } from '@/contexts/buckets-context';
+import { useAutoDeposits } from '@/contexts/auto-deposits-context';
+import { fetchCardForBucket } from '@/lib/api/virtual-cards';
+import { hasLinkedAccount } from '@/lib/api/plaid';
+import type { VirtualCard } from '@/types';
 
 export default function BucketDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+  const { buckets } = useBuckets();
+  const { getRuleForBucket } = useAutoDeposits();
 
-  const bucket = mockBuckets.find((b) => b.id === id);
+  const bucket = buckets.find((b) => b.id === id);
+  const palette = bucket ? getBucketPalette(bucket.colorKey, colorScheme, bucket.customColor) : null;
 
-  if (!bucket) {
+  const [activeCard, setActiveCard] = useState<VirtualCard | null>(null);
+  const [bankLinked, setBankLinked] = useState(false);
+
+  const loadCard = useCallback(async (bucketId: string) => {
+    try {
+      const card = await fetchCardForBucket(bucketId);
+      setActiveCard(card);
+    } catch {
+      setActiveCard(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (id) loadCard(id);
+  }, [id, buckets, loadCard]);
+
+  useEffect(() => {
+    hasLinkedAccount().then(setBankLinked).catch(() => {});
+  }, []);
+
+  if (!bucket || !palette) {
     return (
-      <View style={styles.notFound}>
-        <Text style={styles.notFoundText}>Bucket not found</Text>
+      <View style={[styles.root, { backgroundColor: '#000' }]}>
+        <StatusBar style="light" />
       </View>
     );
   }
 
-  const palette = getBucketPalette(bucket.colorKey);
-  const progress = calcProgress(bucket.currentAmount, bucket.targetAmount);
-  const transactions = mockTransactions.filter((t) => t.bucketId === bucket.id);
-  const Icon = getBucketIcon(bucket.icon);
+  const rule = getRuleForBucket(bucket.id);
+  const isCompleted = bucket.targetAmount > 0 && bucket.currentAmount >= bucket.targetAmount;
+  const isLight = colorScheme === 'light' && bucket.colorKey === 'neutral';
+  const detailTextColor = isLight ? '#1A1A1A' : '#FFFFFF';
+  const detailLabelColor = isLight ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.6)';
+  const detailCardBg = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.12)';
 
   return (
-    <View style={[styles.screen, { backgroundColor: palette.dark }]}>
-      <StatusBar style="light" />
-      <ScrollView
+    <View style={[styles.root, { backgroundColor: palette.dark }]}>
+      <StatusBar style={isLight ? 'dark' : 'light'} />
+
+      {/* Close button */}
+      <View style={[styles.stickyClose, { marginTop: 4 }]}>
+        <Pressable
+          onPress={() => router.back()}
+          style={[styles.closeCircle, { backgroundColor: detailCardBg }]}
+        >
+          <X size={18} color={palette.darkText} weight="bold" />
+        </Pressable>
+      </View>
+
+      <Animated.ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero card */}
-        <View style={[styles.heroCard, { backgroundColor: palette.main }]}>
-          <View style={styles.heroIcon}>
-            <Icon size={24} color={palette.cardText} weight="fill" />
-          </View>
-          <Text style={[styles.heroName, { color: palette.cardText }]}>
-            {bucket.name}
-          </Text>
-          {/* Progress bar inside hero */}
-          <View style={[styles.heroProgress, { backgroundColor: palette.cardText, opacity: 0.15 }]}>
-            <View
-              style={[
-                styles.heroProgressFill,
-                {
-                  backgroundColor: palette.cardText,
-                  width: `${Math.min(progress, 100)}%`,
-                  opacity: 1,
-                },
-              ]}
+        {/* Virtual card view OR Expanded card */}
+        {!bucket.isMain && activeCard ? (
+          <Animated.View
+            entering={FadeInDown.duration(400).delay(80).easing(Easing.out(Easing.cubic))}
+            style={styles.detailBlock}
+          >
+            <VirtualCardDetail
+              card={activeCard}
+              bucketName={bucket.name}
+              bucketIcon={bucket.icon}
+              bucketIconType={bucket.iconType}
+              palette={palette}
+              onStatusChange={() => loadCard(bucket.id)}
+              onMore={() => router.push({ pathname: '/card-actions', params: { cardId: activeCard.id, bucketId: bucket.id } })}
             />
-          </View>
+          </Animated.View>
+        ) : (
+          <Animated.View
+            entering={FadeInDown.duration(350).easing(Easing.out(Easing.cubic))}
+            style={styles.detailBlock}
+          >
+            <BucketCardExpanded bucket={bucket} />
+          </Animated.View>
+        )}
+
+        {/* Stats + auto-deposit — only when no card */}
+        {!activeCard && (
+          <>
+            {!bucket.isMain && (
+              <Animated.View
+                entering={FadeInDown.duration(400).delay(80).easing(Easing.out(Easing.cubic))}
+                style={styles.detailBlock}
+              >
+                <StatsRow
+                  currentAmountCents={bucket.currentAmount}
+                  targetAmountCents={bucket.targetAmount}
+                  progressPercent={calcProgress(bucket.currentAmount, bucket.targetAmount)}
+                  textColor={detailTextColor}
+                  labelColor={detailLabelColor}
+                  animated
+                />
+              </Animated.View>
+            )}
+
+            {!bucket.isMain && rule && (
+              <Animated.View
+                entering={FadeInDown.duration(400).delay(140).easing(Easing.out(Easing.cubic))}
+                style={styles.detailBlock}
+              >
+                <AutoDepositCard
+                  frequency={rule.frequency}
+                  endCondition={rule.endCondition}
+                  amount={String(rule.amount / 100)}
+                  colorKey={bucket.colorKey}
+                  paused={rule.isPaused}
+                  onEdit={() => router.push({ pathname: '/edit-auto-deposit', params: { ruleId: rule.id } })}
+                />
+              </Animated.View>
+            )}
+          </>
+        )}
+
+        <Animated.View
+          entering={FadeInDown.duration(400).delay(activeCard ? 140 : (bucket.isMain ? 80 : 200)).easing(Easing.out(Easing.cubic))}
+          style={styles.detailBlock}
+        >
+          <BucketDetailContent
+            bucket={bucket}
+            textColor={detailTextColor}
+            labelColor={detailLabelColor}
+            cardBg={detailCardBg}
+          />
+        </Animated.View>
+      </Animated.ScrollView>
+
+      {/* Bottom actions */}
+      {!activeCard && (
+        <View style={[styles.floatingBottom, { paddingBottom: insets.bottom + 8 }]}>
+          {bucket.isMain ? (
+            <View style={styles.singleButtonRow}>
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(bankLinked ? '/move-funds' : '/linked-account'); }}
+                style={[styles.fullButton, { backgroundColor: palette.main }]}
+              >
+                <Text style={[styles.fullButtonText, { color: palette.cardText }]}>Move funds</Text>
+              </Pressable>
+            </View>
+          ) : isCompleted ? (
+            <BottomActions
+              onMore={() => router.push({ pathname: '/more-actions', params: { bucketId: bucket.id, completed: '1' } })}
+              onPrimary={() => router.push({ pathname: '/virtual-card', params: { bucketId: bucket.id } })}
+              accentColor={palette.main}
+              accentTextColor={palette.cardText}
+              primaryLabel="Virtual card"
+            />
+          ) : (
+            <BottomActions
+              onMore={() => router.push({ pathname: '/more-actions', params: { bucketId: bucket.id } })}
+              onPrimary={() => router.push({ pathname: '/add-to-bucket', params: { bucketId: bucket.id } })}
+              accentColor={palette.main}
+              accentTextColor={palette.cardText}
+            />
+          )}
         </View>
-
-        {/* Stats */}
-        <StatsRow
-          currentAmountCents={bucket.currentAmount}
-          targetAmountCents={bucket.targetAmount}
-          progressPercent={progress}
-          textColor={palette.darkText}
-          labelColor={`${palette.darkText}99`}
-        />
-
-        {/* Transactions */}
-        <TransactionList
-          transactions={transactions}
-          textColor={palette.darkText}
-        />
-      </ScrollView>
-
-      {/* Bottom CTAs */}
-      <BottomActions
-        onMore={() => {}}
-        onAddFunds={() => {}}
-        accentColor={palette.main}
-        accentTextColor={palette.cardText}
-      />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  root: {
     flex: 1,
+  },
+  stickyClose: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 4,
+    zIndex: 100,
+  },
+  closeCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-end',
   },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 8,
   },
-  heroCard: {
-    borderRadius: 24,
-    padding: 24,
-    minHeight: 200,
-    justifyContent: 'flex-end',
-    gap: 12,
+  detailBlock: {
+    marginHorizontal: -12,
+    marginBottom: 8,
   },
-  heroIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+  floatingBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  singleButtonRow: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  fullButton: {
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroName: {
-    fontSize: 56,
-    fontFamily: Fonts.medium,
-    lineHeight: 56 * 0.9,
-    letterSpacing: 56 * -0.05,
-  },
-  heroProgress: {
-    height: 6,
-    borderRadius: 3,
-    marginTop: 4,
-  },
-  heroProgressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  notFound: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#000',
-  },
-  notFoundText: {
-    color: '#fff',
+  fullButtonText: {
     fontSize: 16,
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.bold,
   },
 });

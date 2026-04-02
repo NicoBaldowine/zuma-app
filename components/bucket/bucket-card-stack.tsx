@@ -1,17 +1,42 @@
 import { StyleSheet, View } from 'react-native';
+import { useMemo } from 'react';
 
 import type { Bucket } from '@/types';
 import { BucketCard } from './bucket-card';
+import { Skeleton } from '@/components/shared/skeleton';
+import { useAutoDeposits } from '@/contexts/auto-deposits-context';
 
 const CARD_OVERLAP = -47;
+const SKELETON_COUNT = 3;
 
 type BucketCardStackProps = {
   buckets: Bucket[];
+  cardBucketIds?: Set<string>;
+  loading?: boolean;
   onCardPress: (bucket: Bucket) => void;
 };
 
-export function BucketCardStack({ buckets, onCardPress }: BucketCardStackProps) {
-  const sorted = [...buckets].sort((a, b) => a.order - b.order);
+export function BucketCardStack({ buckets, cardBucketIds, loading, onCardPress }: BucketCardStackProps) {
+  const sorted = useMemo(() => [...buckets].sort((a, b) => a.order - b.order), [buckets]);
+  const { getRuleForBucket } = useAutoDeposits();
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.cardWrapper,
+              { marginTop: i === 0 ? 0 : CARD_OVERLAP },
+            ]}
+          >
+            <Skeleton width="100%" height={130} borderRadius={30} />
+          </View>
+        ))}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -23,7 +48,13 @@ export function BucketCardStack({ buckets, onCardPress }: BucketCardStackProps) 
             { marginTop: index === 0 ? 0 : CARD_OVERLAP },
           ]}
         >
-          <BucketCard bucket={bucket} onPress={onCardPress} />
+          <BucketCard
+            bucket={bucket}
+            hasAutoDeposit={!bucket.isMain && !!getRuleForBucket(bucket.id)}
+            hasVirtualCard={cardBucketIds?.has(bucket.id)}
+            isLast={index === sorted.length - 1}
+            onPress={onCardPress}
+          />
         </View>
       ))}
     </View>

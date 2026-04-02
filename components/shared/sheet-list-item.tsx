@@ -2,6 +2,7 @@ import { StyleSheet, View, Text, Pressable } from 'react-native';
 import type { ComponentType } from 'react';
 import type { IconProps } from 'phosphor-react-native';
 import { Check } from 'phosphor-react-native';
+import * as Haptics from 'expo-haptics';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Fonts } from '@/constants/theme';
@@ -31,7 +32,7 @@ export function SheetListItem({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
       style={({ pressed }) => [styles.item, pressed && { opacity: 0.7 }]}
     >
       <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
@@ -49,8 +50,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
   },
   iconCircle: {
     width: 40,

@@ -1,12 +1,15 @@
 import { StyleSheet, View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import {
-  X, UserCircle, IdentificationBadge, Bell, ShieldCheck,
-  Moon, Globe, Lifebuoy, ChatCircle, FileText, Receipt,
-  SignOut, Trash, CaretRight,
+  X, UserCircle, Bell,
+  Moon, ChatCircle, FileText,
+  SignOut, Bank,
 } from 'phosphor-react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useThemePreference } from '@/contexts/theme-context';
+import { useAuth } from '@/contexts/auth-context';
 import { Fonts } from '@/constants/theme';
 
 type SectionItem = {
@@ -14,8 +17,8 @@ type SectionItem = {
   label: string;
   icon: any;
   destructive?: boolean;
-  sublabel?: string;
-  badge?: 'warning';
+  badge?: string;
+  badgeColor?: string;
 };
 
 const sections: { title: string; items: SectionItem[] }[] = [
@@ -23,72 +26,54 @@ const sections: { title: string; items: SectionItem[] }[] = [
     title: 'Profile',
     items: [
       { key: 'profile', label: 'Personal Information', icon: UserCircle },
-      { key: 'identity', label: 'Identity Verification', icon: IdentificationBadge, badge: 'warning' },
+      { key: 'linked-account', label: 'Bank Account', icon: Bank, badge: 'Not linked', badgeColor: 'yellow' },
     ],
   },
   {
     title: 'Preferences',
     items: [
-      { key: 'notifications', label: 'Notifications', icon: Bell, sublabel: 'Push alerts' },
-      { key: 'appearance', label: 'Appearance', icon: Moon, sublabel: 'Dark' },
-      { key: 'language', label: 'Language', icon: Globe, sublabel: 'English' },
-    ],
-  },
-  {
-    title: 'Security',
-    items: [
-      { key: 'security', label: 'Security & Privacy', icon: ShieldCheck },
+      { key: 'notifications', label: 'Notifications', icon: Bell },
+      { key: 'appearance', label: 'Appearance', icon: Moon, badge: 'System', badgeColor: 'grey' },
     ],
   },
   {
     title: 'Support',
     items: [
-      { key: 'help', label: 'Help Center', icon: Lifebuoy },
       { key: 'feedback', label: 'Send Feedback', icon: ChatCircle },
       { key: 'legal', label: 'Legal & Policies', icon: FileText },
-      { key: 'statements', label: 'Statements', icon: Receipt },
     ],
   },
   {
     title: 'Account',
     items: [
       { key: 'logout', label: 'Log Out', icon: SignOut },
-      { key: 'delete', label: 'Delete Account', icon: Trash, destructive: true },
     ],
   },
 ];
 
 export default function AccountScreen() {
   const router = useRouter();
+  const { signOut } = useAuth();
+  const { preference } = useThemePreference();
   const bgColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const surfaceColor = useThemeColor({}, 'surface');
   const secondaryColor = useThemeColor({}, 'textSecondary');
   function handleItem(key: string) {
-    if (key === 'notifications') {
-      router.push('/notification-preferences');
-      return;
-    }
-    if (key === 'appearance') {
-      router.push('/appearance');
-      return;
-    }
+    if (key === 'profile') { router.push('/personal-info'); return; }
+    if (key === 'identity') { router.push('/identity-verification'); return; }
+    if (key === 'linked-account') { router.push('/linked-account'); return; }
+    if (key === 'notifications') { router.push('/notification-preferences'); return; }
+    if (key === 'appearance') { router.push('/appearance'); return; }
+    if (key === 'security') { router.push('/security'); return; }
+    if (key === 'feedback') { router.push('/feedback'); return; }
+    if (key === 'legal') { router.push('/legal'); return; }
     if (key === 'logout') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert('Log Out', 'Are you sure you want to log out?', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Log Out', style: 'destructive', onPress: () => {} },
+        { text: 'Log Out', style: 'destructive', onPress: () => { signOut(); } },
       ]);
-      return;
-    }
-    if (key === 'delete') {
-      Alert.alert(
-        'Delete Account',
-        'This action is permanent. All your data, buckets, and savings will be permanently deleted.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete Account', style: 'destructive', onPress: () => {} },
-        ],
-      );
       return;
     }
   }
@@ -119,7 +104,9 @@ export default function AccountScreen() {
             {section.items.map((item) => {
               const Icon = item.icon;
               const color = item.destructive ? '#FF453A' : textColor;
-              const sublabel = item.sublabel;
+              const badgeText = item.key === 'appearance'
+                ? preference.charAt(0).toUpperCase() + preference.slice(1)
+                : item.badge;
               return (
                 <Pressable
                   key={item.key}
@@ -138,16 +125,10 @@ export default function AccountScreen() {
                   <View style={styles.itemText}>
                     <Text style={[styles.itemLabel, { color }]}>{item.label}</Text>
                   </View>
-                  {item.badge === 'warning' && (
-                    <View style={[styles.warningBadge, { backgroundColor: surfaceColor }]}>
-                      <Text style={[styles.warningBadgeText, { color: '#E8A317' }]}>Not verified</Text>
+                  {badgeText && (
+                    <View style={[styles.badge, { backgroundColor: surfaceColor }]}>
+                      <Text style={[styles.badgeText, { color: item.badgeColor === 'grey' ? secondaryColor : '#E8A317' }]}>{badgeText}</Text>
                     </View>
-                  )}
-                  {sublabel && !item.badge && (
-                    <Text style={[styles.sublabel, { color: secondaryColor }]}>{sublabel}</Text>
-                  )}
-                  {!item.destructive && (
-                    <CaretRight size={16} color={secondaryColor} weight="bold" />
                   )}
                 </Pressable>
               );
@@ -181,7 +162,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-end',
   },
   scroll: {
     flex: 1,
@@ -228,18 +209,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: Fonts.medium,
   },
-  sublabel: {
-    fontSize: 13,
-    fontFamily: Fonts.regular,
-    marginRight: 4,
-  },
-  warningBadge: {
+  badge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
     marginRight: 4,
   },
-  warningBadgeText: {
+  badgeText: {
     fontSize: 12,
     fontFamily: Fonts.semiBold,
   },

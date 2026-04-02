@@ -1,17 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, View, Text, Pressable, ScrollView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { X } from 'phosphor-react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Fonts } from '@/constants/theme';
+import {
+  fetchNotificationPreferences,
+  updateNotificationPreferences,
+} from '@/lib/api/notifications';
 
 const categories = [
-  { key: 'auto_deposits', label: 'Auto-deposits', description: 'When an auto-deposit is executed' },
-  { key: 'goal_reached', label: 'Goal reached', description: 'When a bucket reaches its target' },
-  { key: 'weekly_summary', label: 'Weekly summary', description: 'Your savings recap every Monday' },
-  { key: 'low_balance', label: 'Low balance', description: 'When your Main Bucket is running low' },
-];
+  { key: 'goalReached', label: 'Goal reached', description: 'Get notified when a bucket hits its target' },
+  { key: 'bucketSuggestions', label: 'Bucket ideas', description: 'Fun suggestions for new savings goals based on trends' },
+] as const;
 
 export default function NotificationPreferencesScreen() {
   const router = useRouter();
@@ -21,14 +24,34 @@ export default function NotificationPreferencesScreen() {
   const secondaryColor = useThemeColor({}, 'textSecondary');
 
   const [enabled, setEnabled] = useState<Record<string, boolean>>({
-    auto_deposits: true,
-    goal_reached: true,
-    weekly_summary: true,
-    low_balance: true,
+    goalReached: true,
+    bucketSuggestions: true,
   });
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load preferences from Supabase
+  useEffect(() => {
+    fetchNotificationPreferences().then((prefs) => {
+      setEnabled({
+        goalReached: prefs.goalReached,
+        bucketSuggestions: (prefs as any).bucketSuggestions ?? true,
+      });
+    }).catch(() => {});
+  }, []);
+
   function toggle(key: string) {
-    setEnabled((prev) => ({ ...prev, [key]: !prev[key] }));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const next = { ...enabled, [key]: !enabled[key] };
+    setEnabled(next);
+
+    // Debounced save
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      updateNotificationPreferences(undefined, {
+        goalReached: next.goalReached,
+      }).catch(() => {});
+    }, 500);
   }
 
   return (
@@ -54,7 +77,7 @@ export default function NotificationPreferencesScreen() {
             <Switch
               value={enabled[cat.key]}
               onValueChange={() => toggle(cat.key)}
-              trackColor={{ false: surfaceColor, true: textColor }}
+              trackColor={{ false: surfaceColor, true: '#34C759' }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -67,7 +90,7 @@ export default function NotificationPreferencesScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   stickyClose: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 4 },
-  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
+  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-end' },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20 },
   title: { fontSize: 36, fontFamily: Fonts.medium, lineHeight: 36, letterSpacing: 36 * -0.05, marginBottom: 32, marginTop: 8 },

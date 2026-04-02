@@ -3,7 +3,8 @@ import {
   StyleSheet, View, Text, Pressable, TextInput, Modal, ScrollView, Keyboard, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import {
   X, CaretRight, CaretDown, Check, ArrowDown,
   Clock, CalendarBlank, Target, Repeat, Trash, Pause, Play,
@@ -13,8 +14,9 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { Fonts } from '@/constants/theme';
 import { getBucketPalette } from '@/constants/bucket-colors';
 import { getBucketIcon } from '@/utils/bucket-icons';
-import { formatCurrency } from '@/utils/format';
-import { mockBuckets } from '@/data/mock';
+import { formatCurrency, formatAmountInput, parseAmountInput } from '@/utils/format';
+import { useBuckets } from '@/contexts/buckets-context';
+import { useAutoDeposits } from '@/contexts/auto-deposits-context';
 import { SheetListItem } from '@/components/shared';
 import type { Bucket, AutoDepositFrequency, AutoDepositEnd } from '@/types';
 
@@ -35,45 +37,62 @@ const END_OPTIONS: { key: AutoDepositEnd; label: string; short: string; icon: an
 
 export default function EditAutoDepositScreen() {
   const router = useRouter();
+  const { ruleId } = useLocalSearchParams<{ ruleId: string }>();
+  const { buckets } = useBuckets();
+  const { rules, updateRule, deleteRule, pauseRule } = useAutoDeposits();
   const bgColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const surfaceColor = useThemeColor({}, 'surface');
   const secondaryColor = useThemeColor({}, 'textSecondary');
   const insets = useSafeAreaInsets();
 
-  const mainBucket = mockBuckets.find((b) => b.isMain)!;
-  const targetBucket = mockBuckets.find((b) => !b.isMain)!;
+  const rule = rules.find((r) => r.id === ruleId);
+  const mainBucket = buckets.find((b) => b.isMain)!;
+  const targetBucket = buckets.find((b) => b.id === rule?.targetBucketId) ?? buckets.find((b) => !b.isMain)!;
 
-  // Pre-populated with existing auto-deposit data
-  const [fromBucketId, setFromBucketId] = useState(mainBucket.id);
-  const [amount, setAmount] = useState('25');
-  const [frequency, setFrequency] = useState<AutoDepositFrequency>('daily');
-  const [endCondition, setEndCondition] = useState<AutoDepositEnd>('bucket_full');
+  const [fromBucketId, setFromBucketId] = useState(rule?.sourceBucketId ?? mainBucket?.id ?? '');
+  const [amount, setAmount] = useState(rule ? formatAmountInput(String(rule.amount / 100)) : '25');
+  const [frequency, setFrequency] = useState<AutoDepositFrequency>(rule?.frequency ?? 'daily');
+  const [endCondition, setEndCondition] = useState<AutoDepositEnd>(rule?.endCondition ?? 'bucket_full');
 
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused] = useState(rule?.isPaused ?? false);
   const [fromPickerVisible, setFromPickerVisible] = useState(false);
   const [frequencyPickerVisible, setFrequencyPickerVisible] = useState(false);
   const [endPickerVisible, setEndPickerVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const fromBucket = mockBuckets.find((b) => b.id === fromBucketId)!;
+  const fromBucket = buckets.find((b) => b.id === fromBucketId) ?? mainBucket;
   const fromPalette = getBucketPalette(fromBucket.colorKey);
   const targetPalette = getBucketPalette(targetBucket.colorKey);
   const FromIcon = getBucketIcon(fromBucket.icon);
   const TargetIcon = getBucketIcon(targetBucket.icon);
 
-  const availableFromBuckets = mockBuckets.filter(
-    (b) => b.id !== targetBucket.id && b.currentAmount > 0
+  const availableFromBuckets = buckets.filter(
+    (b) => b.id !== targetBucket?.id
   );
 
-  const isValid = amount.trim().length > 0 && parseFloat(amount) > 0;
+  const isValid = amount.trim().length > 0 && parseFloat(parseAmountInput(amount)) > 0;
 
   function handleDelete() {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
       'Delete Auto-Deposit',
       'Are you sure? This will stop all future automatic deposits to this bucket. You can set up a new one anytime.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => router.back() },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!ruleId) return;
+            try {
+              await deleteRule(ruleId);
+              router.back();
+            } catch (err: any) {
+              alert(err.message ?? 'Failed to delete');
+            }
+          },
+        },
       ],
     );
   }
@@ -144,7 +163,7 @@ export default function EditAutoDepositScreen() {
             placeholder="Amount"
             placeholderTextColor={secondaryColor}
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={(v) => setAmount(formatAmountInput(v))}
             keyboardType="decimal-pad"
           />
         </View>
@@ -186,7 +205,17 @@ export default function EditAutoDepositScreen() {
           <Trash size={20} color="#FF453A" weight="fill" />
         </Pressable>
         <Pressable
-          onPress={() => { setIsPaused(!isPaused); router.back(); }}
+          onPress={async () => {
+            if (!ruleId) return;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            try {
+              await pauseRule(ruleId, !isPaused);
+              setIsPaused(!isPaused);
+              router.back();
+            } catch (err: any) {
+              alert(err.message ?? 'Failed to update');
+            }
+          }}
           style={[styles.iconButton, { backgroundColor: surfaceColor }]}
         >
           {isPaused ? (
@@ -196,11 +225,28 @@ export default function EditAutoDepositScreen() {
           )}
         </Pressable>
         <Pressable
-          onPress={() => { if (isValid) router.back(); }}
-          style={[styles.saveButton, { backgroundColor: isValid ? textColor : surfaceColor }]}
+          onPress={async () => {
+            if (!isValid || saving || !ruleId) return;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setSaving(true);
+            try {
+              await updateRule(ruleId, {
+                sourceBucketId: fromBucketId,
+                amount: Math.round(parseFloat(parseAmountInput(amount)) * 100),
+                frequency,
+                endCondition,
+              });
+              router.back();
+            } catch (err: any) {
+              alert(err.message ?? 'Failed to save');
+            } finally {
+              setSaving(false);
+            }
+          }}
+          style={[styles.saveButton, { backgroundColor: isValid && !saving ? textColor : surfaceColor }]}
         >
-          <Text style={[styles.saveButtonText, { color: isValid ? bgColor : secondaryColor }]}>
-            {isPaused ? 'Resume' : 'Save changes'}
+          <Text style={[styles.saveButtonText, { color: isValid && !saving ? bgColor : secondaryColor }]}>
+            {saving ? 'Saving...' : isPaused ? 'Resume' : 'Save changes'}
           </Text>
         </Pressable>
       </View>
@@ -311,17 +357,17 @@ function BucketPickerModal({ visible, onClose, buckets, selectedId, onSelect }: 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   stickyClose: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 4 },
-  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
+  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-end' },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20 },
   title: { fontSize: 36, fontFamily: Fonts.medium, lineHeight: 36, letterSpacing: 36 * -0.05, marginBottom: 24, marginTop: 8 },
   pills: { gap: 8, marginBottom: 8 },
-  bucketPill: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 20 },
+  bucketPill: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 64, paddingHorizontal: 16, borderRadius: 20 },
   pillIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   pillInfo: { flex: 1 },
   pillName: { fontSize: 16, fontFamily: Fonts.medium },
   pillSub: { fontSize: 13, fontFamily: Fonts.regular },
-  arrowOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', top: 10, zIndex: 10, pointerEvents: 'none' },
+  arrowOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', top: -4, zIndex: 10, pointerEvents: 'none' },
   arrowCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 3 },
   field: { borderRadius: 16, paddingHorizontal: 20, paddingVertical: 10, minHeight: 56, justifyContent: 'center', marginBottom: 8 },
   fieldLabel: { fontSize: 12, fontFamily: Fonts.regular, marginBottom: 2 },

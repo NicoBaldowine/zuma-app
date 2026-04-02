@@ -1,6 +1,7 @@
 import { StyleSheet, Pressable, View } from 'react-native';
 import type { ComponentType } from 'react';
 import type { IconProps } from 'phosphor-react-native';
+import * as Haptics from 'expo-haptics';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Fonts } from '@/constants/theme';
@@ -19,7 +20,7 @@ export function ActionButton({ icon: Icon, label, onPress }: ActionButtonProps) 
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
       style={({ pressed }) => [styles.container, pressed && styles.pressed]}
     >
       <View style={[styles.circle, { backgroundColor: surfaceColor }]}>

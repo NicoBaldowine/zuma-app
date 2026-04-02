@@ -3,7 +3,8 @@ import {
   StyleSheet, View, Text, Pressable, TextInput, Modal, ScrollView, Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import {
   X, CaretRight, CaretDown, Check, ArrowDown,
   Clock, CalendarBlank, Target, Repeat,
@@ -13,8 +14,9 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { Fonts } from '@/constants/theme';
 import { getBucketPalette } from '@/constants/bucket-colors';
 import { getBucketIcon } from '@/utils/bucket-icons';
-import { formatCurrency } from '@/utils/format';
-import { mockBuckets } from '@/data/mock';
+import { formatCurrency, formatAmountInput, parseAmountInput } from '@/utils/format';
+import { useBuckets } from '@/contexts/buckets-context';
+import { useAutoDeposits } from '@/contexts/auto-deposits-context';
 import { SheetListItem } from '@/components/shared';
 import type { Bucket, AutoDepositFrequency, AutoDepositEnd } from '@/types';
 
@@ -35,38 +37,43 @@ const END_OPTIONS: { key: AutoDepositEnd; label: string; short: string; icon: an
 
 export default function AutoDepositScreen() {
   const router = useRouter();
+  const { bucketId } = useLocalSearchParams<{ bucketId: string }>();
+
+  const { buckets, mainBucket: ctxMainBucket } = useBuckets();
+  const { createRule } = useAutoDeposits();
   const bgColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const surfaceColor = useThemeColor({}, 'surface');
   const secondaryColor = useThemeColor({}, 'textSecondary');
   const insets = useSafeAreaInsets();
 
-  const mainBucket = mockBuckets.find((b) => b.isMain)!;
-  const targetBucket = mockBuckets.find((b) => !b.isMain)!;
+  const mainBucket = ctxMainBucket!;
+  const targetBucket = buckets.find((b) => b.id === bucketId) ?? buckets.find((b) => !b.isMain)!;
 
-  const [fromBucketId, setFromBucketId] = useState(mainBucket.id);
+  const [fromBucketId, setFromBucketId] = useState(mainBucket?.id ?? '');
   const [amount, setAmount] = useState('');
   const [frequency, setFrequency] = useState<AutoDepositFrequency | null>(null);
   const [endCondition, setEndCondition] = useState<AutoDepositEnd | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const [fromPickerVisible, setFromPickerVisible] = useState(false);
   const [frequencyPickerVisible, setFrequencyPickerVisible] = useState(false);
   const [endPickerVisible, setEndPickerVisible] = useState(false);
 
-  const fromBucket = mockBuckets.find((b) => b.id === fromBucketId)!;
+  const fromBucket = buckets.find((b) => b.id === fromBucketId) ?? mainBucket;
   const fromPalette = getBucketPalette(fromBucket.colorKey);
   const targetPalette = getBucketPalette(targetBucket.colorKey);
   const FromIcon = getBucketIcon(fromBucket.icon);
   const TargetIcon = getBucketIcon(targetBucket.icon);
 
-  const availableFromBuckets = mockBuckets.filter(
-    (b) => b.id !== targetBucket.id && b.currentAmount > 0
+  const availableFromBuckets = buckets.filter(
+    (b) => b.id !== targetBucket?.id
   );
 
-  const isValid = amount.trim().length > 0 && parseFloat(amount) > 0 && frequency && endCondition;
+  const isValid = amount.trim().length > 0 && parseFloat(parseAmountInput(amount)) > 0 && frequency && endCondition;
 
   return (
-    <View style={[styles.root, { backgroundColor: bgColor }]}>
+    <Pressable style={[styles.root, { backgroundColor: bgColor }]} onPress={Keyboard.dismiss}>
       <View style={[styles.stickyClose, { marginTop: 4 }]}>
         <Pressable
           onPress={() => router.back()}
@@ -80,7 +87,7 @@ export default function AutoDepositScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="never"
         keyboardDismissMode="on-drag"
       >
         <Text style={[styles.title, { color: textColor }]}>Auto-deposit</Text>
@@ -88,7 +95,7 @@ export default function AutoDepositScreen() {
         {/* From / To pills */}
         <View style={styles.pills}>
           <Pressable
-            onPress={() => setFromPickerVisible(true)}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFromPickerVisible(true); }}
             style={[styles.bucketPill, { backgroundColor: surfaceColor }]}
           >
             <View style={[styles.pillIcon, { backgroundColor: fromBucket.isMain ? fromPalette.light : fromPalette.main }]}>
@@ -133,7 +140,7 @@ export default function AutoDepositScreen() {
             placeholder="Amount"
             placeholderTextColor={secondaryColor}
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={(v) => setAmount(formatAmountInput(v))}
             keyboardType="decimal-pad"
           />
         </View>
@@ -141,7 +148,7 @@ export default function AutoDepositScreen() {
         {/* Frequency & End dropdowns */}
         <View style={styles.pickersRow}>
           <Pressable
-            onPress={() => setFrequencyPickerVisible(true)}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFrequencyPickerVisible(true); }}
             style={[styles.field, styles.pickerButton, { backgroundColor: surfaceColor }]}
           >
             {frequency && (
@@ -156,7 +163,7 @@ export default function AutoDepositScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => setEndPickerVisible(true)}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEndPickerVisible(true); }}
             style={[styles.field, styles.pickerButton, { backgroundColor: surfaceColor }]}
           >
             {endCondition && (
@@ -177,11 +184,29 @@ export default function AutoDepositScreen() {
       {/* Action button */}
       <View style={[styles.bottomButton, { paddingBottom: insets.bottom + 8 }]}>
         <Pressable
-          onPress={() => { if (isValid) router.back(); }}
-          style={[styles.actionButton, { backgroundColor: isValid ? textColor : surfaceColor }]}
+          onPress={async () => {
+            if (!isValid || saving || !targetBucket) return;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setSaving(true);
+            try {
+              await createRule({
+                sourceBucketId: fromBucketId,
+                targetBucketId: targetBucket.id,
+                amount: Math.round(parseFloat(parseAmountInput(amount)) * 100),
+                frequency: frequency!,
+                endCondition: endCondition!,
+              });
+              router.back();
+            } catch (err: any) {
+              alert(err.message ?? 'Failed to create auto-deposit');
+            } finally {
+              setSaving(false);
+            }
+          }}
+          style={[styles.actionButton, { backgroundColor: isValid && !saving ? textColor : surfaceColor }]}
         >
-          <Text style={[styles.actionButtonText, { color: isValid ? bgColor : secondaryColor }]}>
-            Set up auto-deposit
+          <Text style={[styles.actionButtonText, { color: isValid && !saving ? bgColor : secondaryColor }]}>
+            {saving ? 'Setting up...' : 'Set up auto-deposit'}
           </Text>
         </Pressable>
       </View>
@@ -241,7 +266,7 @@ export default function AutoDepositScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </Pressable>
   );
 }
 
@@ -293,17 +318,17 @@ function BucketPickerModal({ visible, onClose, title, buckets, selectedId, onSel
 const styles = StyleSheet.create({
   root: { flex: 1 },
   stickyClose: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 4 },
-  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
+  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-end' },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20 },
   title: { fontSize: 36, fontFamily: Fonts.medium, lineHeight: 36, letterSpacing: 36 * -0.05, marginBottom: 24, marginTop: 8 },
   pills: { gap: 8, marginBottom: 8 },
-  bucketPill: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 20 },
+  bucketPill: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 64, paddingHorizontal: 16, borderRadius: 20 },
   pillIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   pillInfo: { flex: 1 },
   pillName: { fontSize: 16, fontFamily: Fonts.medium },
   pillSub: { fontSize: 13, fontFamily: Fonts.regular },
-  arrowOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', top: 10, zIndex: 10, pointerEvents: 'none' },
+  arrowOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', top: -4, zIndex: 10, pointerEvents: 'none' },
   arrowCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 3 },
   field: {
     borderRadius: 16,

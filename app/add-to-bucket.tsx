@@ -1,18 +1,19 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
   StyleSheet, View, Text, Pressable, TextInput, Modal,
   InputAccessoryView, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { X, CaretRight, Check, ArrowDown } from 'phosphor-react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Fonts } from '@/constants/theme';
 import { getBucketPalette } from '@/constants/bucket-colors';
 import { getBucketIcon } from '@/utils/bucket-icons';
-import { formatCurrency } from '@/utils/format';
-import { mockBuckets } from '@/data/mock';
+import { formatCurrency, formatAmountInput, parseAmountInput } from '@/utils/format';
+import { useBuckets } from '@/contexts/buckets-context';
 import { SheetListItem } from '@/components/shared';
 import type { Bucket } from '@/types';
 
@@ -20,6 +21,8 @@ const INPUT_ACCESSORY_ID = 'add-to-bucket-btn';
 
 export default function AddToBucketScreen() {
   const router = useRouter();
+  const { bucketId } = useLocalSearchParams<{ bucketId: string }>();
+  const { buckets, moveFunds } = useBuckets();
   const bgColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const surfaceColor = useThemeColor({}, 'surface');
@@ -29,17 +32,16 @@ export default function AddToBucketScreen() {
 
   const [amount, setAmount] = useState('');
   const [fromPickerVisible, setFromPickerVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // TODO: get actual target bucket from context/params
-  const targetBucket = mockBuckets.find((b) => !b.isMain)!;
-  const mainBucket = mockBuckets.find((b) => b.isMain)!;
+  const targetBucket = buckets.find((b) => b.id === bucketId) ?? buckets.find((b) => !b.isMain)!;
+  const mainBucket = buckets.find((b) => b.isMain)!;
 
-  const [fromBucketId, setFromBucketId] = useState(mainBucket.id);
-  const fromBucket = mockBuckets.find((b) => b.id === fromBucketId)!;
+  const [fromBucketId, setFromBucketId] = useState(mainBucket?.id ?? '');
+  const fromBucket = buckets.find((b) => b.id === fromBucketId) ?? mainBucket;
 
-  // Buckets available as "from" source — must have funds and not be the target
-  const availableFromBuckets = mockBuckets.filter(
-    (b) => b.id !== targetBucket.id && b.currentAmount > 0
+  const availableFromBuckets = buckets.filter(
+    (b) => b.id !== targetBucket?.id
   );
 
   const fromPalette = getBucketPalette(fromBucket.colorKey);
@@ -47,17 +49,29 @@ export default function AddToBucketScreen() {
   const FromIcon = getBucketIcon(fromBucket.icon);
   const TargetIcon = getBucketIcon(targetBucket.icon);
 
-  const amountCents = Math.round(parseFloat(amount || '0') * 100);
+  const amountCents = Math.round(parseFloat(parseAmountInput(amount) || '0') * 100);
   const isValid = amountCents > 0 && amountCents <= fromBucket.currentAmount;
 
   const actionButton = (
     <View style={[styles.buttonContainer, { backgroundColor: bgColor }]}>
       <Pressable
-        onPress={() => { if (isValid) router.back(); }}
-        style={[styles.actionButton, { backgroundColor: isValid ? textColor : surfaceColor }]}
+        onPress={async () => {
+          if (!isValid || saving || !targetBucket) return;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setSaving(true);
+          try {
+            await moveFunds(fromBucketId, targetBucket.id, amountCents);
+            router.back();
+          } catch (err: any) {
+            alert(err.message ?? 'Failed to add funds');
+          } finally {
+            setSaving(false);
+          }
+        }}
+        style={[styles.actionButton, { backgroundColor: isValid && !saving ? textColor : surfaceColor }]}
       >
-        <Text style={[styles.actionButtonText, { color: isValid ? bgColor : secondaryColor }]}>
-          Add funds
+        <Text style={[styles.actionButtonText, { color: isValid && !saving ? bgColor : secondaryColor }]}>
+          {saving ? 'Adding...' : 'Add funds'}
         </Text>
       </Pressable>
     </View>
@@ -118,7 +132,7 @@ export default function AddToBucketScreen() {
           ref={inputRef}
           style={[styles.amountInput, { color: textColor }]}
           value={amount}
-          onChangeText={setAmount}
+          onChangeText={(v) => setAmount(formatAmountInput(v))}
           keyboardType="decimal-pad"
           placeholder="0"
           placeholderTextColor={secondaryColor}
@@ -129,7 +143,7 @@ export default function AddToBucketScreen() {
 
       <View style={styles.maxRow}>
         <Pressable
-          onPress={() => setAmount((fromBucket.currentAmount / 100).toString())}
+          onPress={() => setAmount(formatAmountInput((fromBucket.currentAmount / 100).toString()))}
           style={[styles.maxButton, { backgroundColor: surfaceColor }]}
         >
           <Text style={[styles.maxText, { color: secondaryColor }]}>Max</Text>
@@ -216,7 +230,7 @@ function FromPickerModal({ visible, onClose, buckets, selectedId, onSelect }: {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   stickyClose: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 4 },
-  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
+  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-end' },
   pills: {
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -226,7 +240,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 14,
+    height: 64,
     paddingHorizontal: 16,
     borderRadius: 20,
   },

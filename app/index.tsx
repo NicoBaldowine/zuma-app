@@ -1,34 +1,30 @@
-import { StyleSheet, View, Pressable, Text } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   useAnimatedScrollHandler,
-  withTiming,
   interpolate,
   Extrapolation,
-  runOnJS,
-  Easing,
-  FadeIn,
-  FadeInDown,
 } from 'react-native-reanimated';
-import { X } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import * as Haptics from 'expo-haptics';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getBucketPalette } from '@/constants/bucket-colors';
 import { Fonts } from '@/constants/theme';
 import { BalanceDisplay, ActionBar } from '@/components/home';
-import { BucketCardStack, BucketCardExpanded, BucketDetailContent, BottomActions, StatsRow, AutoDepositCard } from '@/components/bucket';
-import { calcProgress, formatCurrency } from '@/utils/format';
-import { mockWallet, mockBuckets } from '@/data/mock';
+import { BucketCardStack } from '@/components/bucket';
+import { formatCurrency } from '@/utils/format';
+import { useBuckets } from '@/contexts/buckets-context';
+import { fetchActiveCardBucketIds } from '@/lib/api/virtual-cards';
+import { hasLinkedAccount } from '@/lib/api/plaid';
 import type { Bucket } from '@/types';
 
-const TIMING_CONFIG = { duration: 350, easing: Easing.out(Easing.cubic) };
-const SCROLL_THRESHOLD = 80; // px scrolled before badge appears
+const SCROLL_THRESHOLD = 80;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -37,31 +33,21 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
 
-  const [selectedBucket, setSelectedBucket] = useState<Bucket | null>(null);
-  const lastBucketRef = useRef<Bucket | null>(null);
-  const expanded = useSharedValue(0);
+  const { buckets, wallet, loading } = useBuckets();
+
+  const [cardBucketIds, setCardBucketIds] = useState<Set<string>>(new Set());
+  const [bankLinked, setBankLinked] = useState(false);
   const scrollY = useSharedValue(0);
 
-  const activeBucket = selectedBucket ?? lastBucketRef.current;
-  const activePalette = activeBucket ? getBucketPalette(activeBucket.colorKey) : null;
-  const darkBgColor = activePalette?.dark ?? bgColor;
-
-  const handleCardPress = useCallback((bucket: Bucket) => {
-    lastBucketRef.current = bucket;
-    setSelectedBucket(bucket);
-    expanded.value = withTiming(1, TIMING_CONFIG);
-  }, [expanded]);
-
-  const clearSelection = useCallback(() => {
-    lastBucketRef.current = null;
+  useEffect(() => {
+    hasLinkedAccount().then(setBankLinked).catch(() => {});
+    fetchActiveCardBucketIds().then(setCardBucketIds).catch(() => {});
   }, []);
 
-  const handleClose = useCallback(() => {
-    setSelectedBucket(null);
-    expanded.value = withTiming(0, TIMING_CONFIG, () => {
-      runOnJS(clearSelection)();
-    });
-  }, [expanded, clearSelection]);
+  const handleCardPress = useCallback((bucket: Bucket) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({ pathname: '/bucket/[id]', params: { id: bucket.id } });
+  }, [router]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -69,18 +55,6 @@ export default function HomeScreen() {
     },
   });
 
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(expanded.value, [0, 1], [0, 1]),
-  }));
-
-  const bottomActionsStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(expanded.value, [0.3, 1], [0, 1]),
-    transform: [
-      { translateY: interpolate(expanded.value, [0.3, 1], [60, 0]) },
-    ],
-  }));
-
-  // Compact badge appears as you scroll past the header
   const badgeStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       scrollY.value,
@@ -100,33 +74,12 @@ export default function HomeScreen() {
     ],
   }));
 
-  const isDetail = !!selectedBucket;
-
   return (
     <View style={[styles.root, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-      {/* Background overlay */}
-      <Animated.View
-        style={[StyleSheet.absoluteFill, { backgroundColor: darkBgColor }, overlayStyle]}
-        pointerEvents="none"
-      />
-
-      {/* Sticky floating X — outside ScrollView */}
-      {isDetail && activePalette && (
-        <Animated.View
-          entering={FadeIn.duration(250).delay(100)}
-          style={[styles.stickyClose, { marginTop: 4 }]}
-        >
-          <Pressable
-            onPress={handleClose}
-            style={[styles.closeCircle, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
-          >
-            <X size={18} color={activePalette.darkText} weight="bold" />
-          </Pressable>
-        </Animated.View>
-      )}
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
 
       {/* Sticky compact balance badge — shows when scrolled */}
-      {!isDetail && (
+      {!loading && (
         <Animated.View style={[styles.stickyBadge, badgeStyle]} pointerEvents="none">
           <BlurView
             intensity={80}
@@ -134,7 +87,7 @@ export default function HomeScreen() {
             style={styles.badgeBlur}
           >
             <Text style={[styles.badgeText, { color: textColor }]}>
-              {formatCurrency(mockWallet.totalBalance)}
+              {formatCurrency(wallet.totalBalance)}
             </Text>
           </BlurView>
         </Animated.View>
@@ -147,105 +100,27 @@ export default function HomeScreen() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
-        {isDetail && activeBucket && activePalette ? (
-          <>
-            <View style={styles.closeSpacer} />
-
-            <Animated.View
-              entering={FadeInDown.duration(350).easing(Easing.out(Easing.cubic))}
-              style={styles.detailBlock}
-            >
-              <BucketCardExpanded bucket={activeBucket} />
-            </Animated.View>
-
-            {!activeBucket.isMain && (
-              <Animated.View
-                entering={FadeInDown.duration(400).delay(80).easing(Easing.out(Easing.cubic))}
-                style={styles.detailBlock}
-              >
-                <StatsRow
-                  currentAmountCents={activeBucket.currentAmount}
-                  targetAmountCents={activeBucket.targetAmount}
-                  progressPercent={calcProgress(activeBucket.currentAmount, activeBucket.targetAmount)}
-                  textColor="#FFFFFF"
-                  labelColor="rgba(255,255,255,0.6)"
-                  animated
-                />
-              </Animated.View>
-            )}
-
-            {/* Auto-deposit card — mock: show for first non-main bucket */}
-            {!activeBucket.isMain && activeBucket.id === 'bucket-7' && (
-              <Animated.View
-                entering={FadeInDown.duration(400).delay(activeBucket.isMain ? 80 : 140).easing(Easing.out(Easing.cubic))}
-                style={styles.detailBlock}
-              >
-                <AutoDepositCard
-                  frequency="daily"
-                  endCondition="bucket_full"
-                  amount="25"
-                  colorKey={activeBucket.colorKey}
-                  onEdit={() => router.push('/edit-auto-deposit')}
-                />
-              </Animated.View>
-            )}
-
-            <Animated.View
-              entering={FadeInDown.duration(400).delay(activeBucket.isMain ? 80 : 200).easing(Easing.out(Easing.cubic))}
-              style={styles.detailBlock}
-            >
-              <BucketDetailContent bucket={activeBucket} />
-            </Animated.View>
-
-            <View style={styles.bottomSpacer} />
-          </>
-        ) : (
-          <>
-            <BalanceDisplay label="Total Savings" amountCents={mockWallet.totalBalance} />
-            <ActionBar
-              onNewBucket={() => router.push('/create-bucket')}
-              onAddFunds={() => router.push('/add-funds')}
-              onAccount={() => router.push('/account')}
-              onMore={() => router.push('/home-actions')}
-            />
-            <BucketCardStack
-              buckets={mockBuckets}
-              onCardPress={handleCardPress}
-            />
-          </>
-        )}
+        <BalanceDisplay
+          label="Total Savings"
+          amountCents={wallet.totalBalance}
+          loading={loading}
+          linked={bankLinked}
+          onLinkPress={() => router.push('/linked-account')}
+          onRefreshPress={() => router.push('/refresh-balance' as any)}
+        />
+        <ActionBar
+          onNewBucket={() => router.push('/create-bucket')}
+          onMoveFunds={() => router.push(bankLinked ? '/move-funds' : '/linked-account')}
+          onAutoDeposit={() => router.push(bankLinked ? '/auto-deposit' : '/linked-account')}
+          onAccount={() => router.push('/account')}
+        />
+        <BucketCardStack
+          buckets={buckets}
+          cardBucketIds={cardBucketIds}
+          loading={loading}
+          onCardPress={handleCardPress}
+        />
       </Animated.ScrollView>
-
-      {/* Floating sticky bottom actions */}
-      {activePalette && (
-        <Animated.View
-          style={[
-            styles.floatingBottom,
-            { paddingBottom: insets.bottom + 8 },
-            bottomActionsStyle,
-          ]}
-          pointerEvents={isDetail ? 'auto' : 'none'}
-        >
-          {activeBucket?.isMain ? (
-            <View style={styles.singleButtonRow}>
-              <Pressable
-                onPress={() => router.push('/add-funds')}
-                style={[styles.fullButton, { backgroundColor: activePalette.main }]}
-              >
-                <Text style={[styles.fullButtonText, { color: activePalette.cardText }]}>Add funds</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <BottomActions
-              onMore={() => router.push('/more-actions')}
-              onAddFunds={() => router.push('/add-to-bucket')}
-              accentColor={activePalette.main}
-              accentTextColor={activePalette.cardText}
-            />
-          )}
-        </Animated.View>
-      )}
-
     </View>
   );
 }
@@ -261,24 +136,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  stickyClose: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 4,
-    zIndex: 100,
-  },
-  closeSpacer: {
-    height: 8,
-  },
-  closeCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
   stickyBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 0,
+    right: 0,
     alignItems: 'center',
     zIndex: 100,
   },
@@ -292,32 +154,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: Fonts.semiBold,
     letterSpacing: 16 * -0.05,
-  },
-  detailBlock: {
-    marginHorizontal: -12,
-    marginBottom: 8,
-  },
-  bottomSpacer: {
-    height: 100,
-  },
-  singleButtonRow: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
-  fullButton: {
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fullButtonText: {
-    fontSize: 16,
-    fontFamily: Fonts.bold,
-  },
-  floatingBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
   },
 });

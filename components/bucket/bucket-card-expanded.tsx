@@ -12,15 +12,17 @@ import { getBucketPalette } from '@/constants/bucket-colors';
 import { Fonts } from '@/constants/theme';
 import { calcProgress } from '@/utils/format';
 import { getBucketIcon } from '@/utils/bucket-icons';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 type BucketCardExpandedProps = {
   bucket: Bucket;
 };
 
 export function BucketCardExpanded({ bucket }: BucketCardExpandedProps) {
-  const palette = getBucketPalette(bucket.colorKey);
+  const colorScheme = useColorScheme();
+  const palette = getBucketPalette(bucket.colorKey, colorScheme, bucket.customColor);
   const progress = calcProgress(bucket.currentAmount, bucket.targetAmount);
-  const Icon = getBucketIcon(bucket.icon);
+  const Icon = bucket.iconType !== 'emoji' ? getBucketIcon(bucket.icon) : null;
 
   const fillWidth = useSharedValue(0);
 
@@ -38,7 +40,11 @@ export function BucketCardExpanded({ bucket }: BucketCardExpandedProps) {
   return (
     <View style={[styles.card, { backgroundColor: palette.main }]}>
       <View style={styles.iconCircle}>
-        <Icon size={22} color={palette.cardText} weight="fill" />
+        {bucket.iconType === 'emoji' ? (
+          <Text style={{ fontSize: 20 }}>{bucket.icon}</Text>
+        ) : (
+          Icon && <Icon size={22} color={palette.cardText} weight="fill" />
+        )}
       </View>
 
       <Text style={[styles.name, { color: palette.cardText }]}>
@@ -83,12 +89,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   name: {
     fontSize: 36,
     fontFamily: Fonts.medium,
-    lineHeight: 36,
+    lineHeight: 40,
     letterSpacing: 36 * -0.05,
     marginBottom: 20,
   },

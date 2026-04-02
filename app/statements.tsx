@@ -1,5 +1,6 @@
 import { StyleSheet, View, Text, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { X, CaretRight, FileText } from 'phosphor-react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -22,7 +23,7 @@ export default function StatementsScreen() {
     <View style={[styles.root, { backgroundColor: bgColor }]}>
       <View style={[styles.stickyClose, { marginTop: 4 }]}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
           style={[styles.closeCircle, { backgroundColor: surfaceColor }]}
         >
           <X size={18} color={secondaryColor} weight="bold" />
@@ -57,7 +58,7 @@ export default function StatementsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   stickyClose: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 4 },
-  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
+  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-end' },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20 },
   title: { fontSize: 36, fontFamily: Fonts.medium, lineHeight: 36, letterSpacing: 36 * -0.05, marginTop: 8, marginBottom: 24 },

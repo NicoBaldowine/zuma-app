@@ -8,3 +8,4 @@ export { TransactionItem } from './transaction-item';
 export { TransactionList } from './transaction-list';
 export { BottomActions } from './bottom-actions';
 export { AutoDepositCard } from './auto-deposit-card';
+export { VirtualCardDetail } from './virtual-card-detail';

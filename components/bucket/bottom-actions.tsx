@@ -1,35 +1,38 @@
 import { StyleSheet, View, Pressable, Text } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 import { Fonts } from '@/constants/theme';
 
 type BottomActionsProps = {
   onMore: () => void;
-  onAddFunds: () => void;
+  onPrimary: () => void;
   accentColor: string;
   accentTextColor: string;
+  primaryLabel?: string;
 };
 
 export function BottomActions({
   onMore,
-  onAddFunds,
+  onPrimary,
   accentColor,
   accentTextColor,
+  primaryLabel = 'Add funds',
 }: BottomActionsProps) {
   return (
     <View style={styles.container}>
       <Pressable
-        onPress={onMore}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onMore(); }}
         style={[styles.button, styles.moreButton]}
       >
         <Text style={[styles.buttonText, { color: 'rgba(255,255,255,0.8)' }]}>More</Text>
       </Pressable>
 
       <Pressable
-        onPress={onAddFunds}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPrimary(); }}
         style={[styles.button, { backgroundColor: accentColor }]}
       >
         <Text style={[styles.buttonText, { color: accentTextColor }]}>
-          Add funds
+          {primaryLabel}
         </Text>
       </Pressable>
     </View>

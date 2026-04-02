@@ -1,12 +1,15 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { X } from 'phosphor-react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ColorPicker, { Panel1, HueSlider, Preview } from 'reanimated-color-picker';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Fonts } from '@/constants/theme';
+import { setCustomColor } from '@/utils/custom-color-store';
 
 export default function CustomColorScreen() {
   const router = useRouter();
@@ -16,14 +19,20 @@ export default function CustomColorScreen() {
   const secondaryColor = useThemeColor({}, 'textSecondary');
   const insets = useSafeAreaInsets();
 
-  const [selectedColor, setSelectedColor] = useState('#FF6B6B');
+  const colorRef = useRef('#FF6B6B');
 
-  const onSelectColor = useCallback(({ hex }: { hex: string }) => {
-    setSelectedColor(hex);
+  const onColorChange = useCallback(({ hex }: { hex: string }) => {
+    colorRef.current = hex.length > 7 ? hex.slice(0, 7) : hex;
   }, []);
 
+  const handleSelect = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCustomColor(colorRef.current);
+    router.back();
+  }, [router]);
+
   return (
-    <View style={[styles.root, { backgroundColor: bgColor }]}>
+    <GestureHandlerRootView style={[styles.root, { backgroundColor: bgColor }]}>
       <View style={[styles.stickyClose, { marginTop: 4 }]}>
         <Pressable
           onPress={() => router.back()}
@@ -38,40 +47,33 @@ export default function CustomColorScreen() {
 
         <ColorPicker
           style={styles.picker}
-          value={selectedColor}
-          onComplete={onSelectColor}
+          value="#FF6B6B"
+          onChange={onColorChange}
         >
           <Preview style={styles.preview} hideInitialColor />
           <Panel1 style={styles.panel} />
           <HueSlider style={styles.hueSlider} />
         </ColorPicker>
-
-        <Text style={[styles.hexLabel, { color: secondaryColor }]}>
-          {selectedColor.toUpperCase()}
-        </Text>
       </View>
 
       <View style={[styles.bottomButton, { paddingBottom: insets.bottom + 8 }]}>
         <Pressable
-          onPress={() => {
-            // TODO: pass color back via params/context
-            router.back();
-          }}
-          style={[styles.selectButton, { backgroundColor: selectedColor }]}
+          onPress={handleSelect}
+          style={[styles.selectButton, { backgroundColor: textColor }]}
         >
-          <Text style={[styles.selectButtonText, { color: '#FFFFFF' }]}>
+          <Text style={[styles.selectButtonText, { color: bgColor }]}>
             Select color
           </Text>
         </Pressable>
       </View>
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   stickyClose: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 4 },
-  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
+  closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-end' },
   content: {
     flex: 1,
     paddingHorizontal: 20,
@@ -98,12 +100,6 @@ const styles = StyleSheet.create({
   hueSlider: {
     height: 36,
     borderRadius: 18,
-  },
-  hexLabel: {
-    textAlign: 'center',
-    fontSize: 14,
-    fontFamily: Fonts.medium,
-    marginTop: 16,
   },
   bottomButton: {
     position: 'absolute',

@@ -1,27 +1,27 @@
 import { StyleSheet, View } from 'react-native';
-import { PaintBucket, PlusCircle, User, DotsThreeOutline } from 'phosphor-react-native';
+import { PaintBucket, ArrowsLeftRight, Repeat, User } from 'phosphor-react-native';
 
 import { ActionButton } from './action-button';
 
 type ActionBarProps = {
   onNewBucket: () => void;
-  onAddFunds: () => void;
+  onMoveFunds: () => void;
+  onAutoDeposit: () => void;
   onAccount: () => void;
-  onMore: () => void;
 };
 
 export function ActionBar({
   onNewBucket,
-  onAddFunds,
+  onMoveFunds,
+  onAutoDeposit,
   onAccount,
-  onMore,
 }: ActionBarProps) {
   return (
     <View style={styles.container}>
       <ActionButton icon={PaintBucket} label="New bucket" onPress={onNewBucket} />
-      <ActionButton icon={PlusCircle} label="Add funds" onPress={onAddFunds} />
+      <ActionButton icon={ArrowsLeftRight} label="Move funds" onPress={onMoveFunds} />
+      <ActionButton icon={Repeat} label="Auto-deposit" onPress={onAutoDeposit} />
       <ActionButton icon={User} label="Account" onPress={onAccount} />
-      <ActionButton icon={DotsThreeOutline} label="More" onPress={onMore} />
     </View>
   );
 }

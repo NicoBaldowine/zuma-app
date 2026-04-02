@@ -1,5 +1,6 @@
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { Repeat, PencilSimple, Pause } from 'phosphor-react-native';
+import * as Haptics from 'expo-haptics';
 
 import { Fonts } from '@/constants/theme';
 import { getBucketPalette } from '@/constants/bucket-colors';
@@ -58,7 +59,7 @@ export function AutoDepositCard({
           </Text>
         </View>
       </View>
-      <Pressable onPress={onEdit} style={[styles.editButton, { backgroundColor: paused ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)' }]}>
+      <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEdit(); }} style={[styles.editButton, { backgroundColor: paused ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)' }]}>
         <PencilSimple size={16} color={paused ? '#FFFFFF' : palette.cardText} weight="fill" />
       </Pressable>
     </View>
