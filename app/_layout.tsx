@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, Redirect, useSegments } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import 'react-native-reanimated';
 
 import {
@@ -25,7 +25,10 @@ import { registerForPushNotifications } from '@/lib/push-notifications';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 
-SplashScreen.preventAutoHideAsync().catch(() => {});
+let splashReady = false;
+SplashScreen.preventAutoHideAsync()
+  .then(() => { splashReady = true; })
+  .catch(() => {});
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -52,10 +55,14 @@ export default function RootLayout() {
 
 function RootLayoutGuard() {
   const { loading } = useAuth();
+  const splashHidden = useRef(false);
 
   useEffect(() => {
-    if (!loading) {
-      SplashScreen.hideAsync().catch(() => {});
+    if (!loading && !splashHidden.current) {
+      splashHidden.current = true;
+      if (splashReady) {
+        SplashScreen.hideAsync().catch(() => {});
+      }
     }
   }, [loading]);
 
