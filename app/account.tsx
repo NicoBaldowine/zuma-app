@@ -61,7 +61,7 @@ export default function AccountScreen() {
   const textColor = useThemeColor({}, 'text');
   const surfaceColor = useThemeColor({}, 'surface');
   const secondaryColor = useThemeColor({}, 'textSecondary');
-  const [bankLinked, setBankLinked] = useState(false);
+  const [bankLinked, setBankLinked] = useState<boolean | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -116,7 +116,7 @@ export default function AccountScreen() {
               const badgeText = item.key === 'appearance'
                 ? preference.charAt(0).toUpperCase() + preference.slice(1)
                 : item.key === 'linked-account'
-                  ? (bankLinked ? 'Linked' : 'Not linked')
+                  ? (bankLinked === null ? undefined : bankLinked ? 'Linked' : 'Not linked')
                   : item.badge;
               const badgeColor = item.key === 'linked-account'
                 ? (bankLinked ? 'green' : 'yellow')
