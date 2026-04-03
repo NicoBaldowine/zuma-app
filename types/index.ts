@@ -1,10 +1,10 @@
-export type BucketColorKey = 'lime' | 'orange' | 'lavender' | 'coral' | 'sky' | 'mint' | 'gold' | 'rose' | 'peach' | 'teal' | 'indigo' | 'sage' | 'berry' | 'mauve' | 'ocean' | 'lemon' | 'blush' | 'slate' | 'ember' | 'lilac' | 'neutral' | 'custom';
+export type BucketColorKey = 'lime' | 'orange' | 'lavender' | 'coral' | 'sky' | 'mint' | 'gold' | 'rose' | 'peach' | 'teal' | 'indigo' | 'sage' | 'berry' | 'mauve' | 'ocean' | 'lemon' | 'blush' | 'slate' | 'ember' | 'lilac' | 'clay' | 'denim' | 'olive' | 'wine' | 'sand' | 'neutral' | 'custom';
 
 export type Bucket = {
   id: string;
   name: string;
-  icon: string; // Phosphor icon name or emoji
-  iconType: 'icon' | 'emoji';
+  icon: string; // Phosphor icon name, emoji, or JSON pixel data
+  iconType: 'icon' | 'emoji' | 'pixel';
   colorKey: BucketColorKey;
   customColor?: string; // hex value when colorKey = 'custom'
   currentAmount: number; // cents
@@ -61,9 +61,11 @@ export type NotificationPreferences = {
   id: string;
   userId: string;
   goalReached: boolean;
+  bucketSuggestions: boolean;
   deposits: boolean;
   weeklySummary: boolean;
   lowBalance: boolean;
+  autoDepositPaused: boolean;
 };
 
 export type VirtualCardStatus = 'active' | 'frozen' | 'used' | 'cancelled';

@@ -1,5 +1,6 @@
 import { StyleSheet, View, Text, Pressable, ScrollView, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
 import {
   X, UserCircle, Bell,
@@ -11,6 +12,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useThemePreference } from '@/contexts/theme-context';
 import { useAuth } from '@/contexts/auth-context';
 import { Fonts } from '@/constants/theme';
+import { hasLinkedAccount } from '@/lib/api/plaid';
 
 type SectionItem = {
   key: string;
@@ -26,7 +28,7 @@ const sections: { title: string; items: SectionItem[] }[] = [
     title: 'Profile',
     items: [
       { key: 'profile', label: 'Personal Information', icon: UserCircle },
-      { key: 'linked-account', label: 'Bank Account', icon: Bank, badge: 'Not linked', badgeColor: 'yellow' },
+      { key: 'linked-account', label: 'Bank Account', icon: Bank },
     ],
   },
   {
@@ -40,7 +42,7 @@ const sections: { title: string; items: SectionItem[] }[] = [
     title: 'Support',
     items: [
       { key: 'feedback', label: 'Send Feedback', icon: ChatCircle },
-      { key: 'legal', label: 'Legal & Policies', icon: FileText },
+      { key: 'legal', label: 'Terms & Privacy', icon: FileText },
     ],
   },
   {
@@ -59,6 +61,13 @@ export default function AccountScreen() {
   const textColor = useThemeColor({}, 'text');
   const surfaceColor = useThemeColor({}, 'surface');
   const secondaryColor = useThemeColor({}, 'textSecondary');
+  const [bankLinked, setBankLinked] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      hasLinkedAccount().then(setBankLinked).catch(() => {});
+    }, [])
+  );
   function handleItem(key: string) {
     if (key === 'profile') { router.push('/personal-info'); return; }
     if (key === 'identity') { router.push('/identity-verification'); return; }
@@ -106,7 +115,12 @@ export default function AccountScreen() {
               const color = item.destructive ? '#FF453A' : textColor;
               const badgeText = item.key === 'appearance'
                 ? preference.charAt(0).toUpperCase() + preference.slice(1)
-                : item.badge;
+                : item.key === 'linked-account'
+                  ? (bankLinked ? 'Linked' : 'Not linked')
+                  : item.badge;
+              const badgeColor = item.key === 'linked-account'
+                ? (bankLinked ? 'green' : 'yellow')
+                : item.badgeColor;
               return (
                 <Pressable
                   key={item.key}
@@ -127,7 +141,7 @@ export default function AccountScreen() {
                   </View>
                   {badgeText && (
                     <View style={[styles.badge, { backgroundColor: surfaceColor }]}>
-                      <Text style={[styles.badgeText, { color: item.badgeColor === 'grey' ? secondaryColor : '#E8A317' }]}>{badgeText}</Text>
+                      <Text style={[styles.badgeText, { color: badgeColor === 'green' ? '#34C759' : badgeColor === 'grey' ? secondaryColor : '#E8A317' }]}>{badgeText}</Text>
                     </View>
                   )}
                 </Pressable>

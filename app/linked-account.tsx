@@ -8,6 +8,8 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { Fonts } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { getCurrentUserId } from '@/lib/auth/get-user-id';
+import { resetAllBucketBalances } from '@/lib/api/transfers';
+import { usePlaidLink } from '@/hooks/use-plaid-link';
 
 const BENEFITS = [
   {
@@ -38,7 +40,7 @@ type LinkedAccount = {
 const FAKE_ACCOUNT: LinkedAccount = {
   institutionName: 'Chase',
   accountName: 'Chase Savings',
-  accountMask: '9394',
+  accountMask: '9878',
   accountSubtype: 'savings',
   connectedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
 };
@@ -86,7 +88,7 @@ export default function LinkedAccountScreen() {
     // Simulate a brief loading delay
     await new Promise((r) => setTimeout(r, 1200));
 
-    // Insert fake linked account into DB
+    // Insert fake linked account into DB + seed balance
     try {
       await (supabase.from as any)('linked_accounts').upsert({
         user_id: getCurrentUserId(),
@@ -95,6 +97,7 @@ export default function LinkedAccountScreen() {
         account_mask: FAKE_ACCOUNT.accountMask,
         account_subtype: FAKE_ACCOUNT.accountSubtype,
       }, { onConflict: 'user_id' });
+      await seedMainBucketBalance(250000); // $2,500
     } catch {}
 
     setAccount(FAKE_ACCOUNT);
@@ -118,6 +121,7 @@ export default function LinkedAccountScreen() {
               await (supabase.from as any)('linked_accounts')
                 .delete()
                 .eq('user_id', getCurrentUserId());
+              await resetAllBucketBalances();
             } catch {}
             setAccount(null);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

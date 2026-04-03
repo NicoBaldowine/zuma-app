@@ -44,9 +44,9 @@ This MVP is a **Plaid-mirrored savings dashboard** with gamified bucket mechanic
 
 ### What's NOT included in MVP
 
-- Real virtual card issuance (Column.com integration)
-- KYC / identity verification
-- Push notifications (except bucket completion)
+- Real virtual card issuance (Column.com integration) — preview/teaser UI only
+- KYC / identity verification — UI scaffolded, backend not implemented
+- Mixpanel / analytics — not yet integrated
 - Android version
 - APY / interest on savings
 - Referral program
@@ -149,12 +149,14 @@ This MVP is a **Plaid-mirrored savings dashboard** with gamified bucket mechanic
 - Push notification when bucket is completed via auto-deposit
 
 ### Notifications
-- One notification only in MVP: bucket completion
-- Future: weekly savings status, auto-deposit reminders
+- Push notifications via Expo with full preference system
+- Supported types: goal reached, bucket suggestions, deposit confirmations, weekly summary, low balance alerts, auto-deposit paused
+- Users can toggle each notification type individually
+- Bucket suggestions sent monthly with seasonal/Gen Z-relevant ideas
 
 ### Analytics
-- Mixpanel for event tracking
-- Key events to track:
+- Not yet integrated (Mixpanel planned)
+- Key events to track post-integration:
   - `bucket_created`
   - `bank_connected`
   - `auto_deposit_set`
@@ -173,7 +175,7 @@ This MVP is a **Plaid-mirrored savings dashboard** with gamified bucket mechanic
 | Auth | Supabase + Google OAuth |
 | Bank Connection | Plaid API |
 | Analytics | Mixpanel |
-| Notifications | TBD (basic push for bucket completion) |
+| Notifications | Expo Push Notifications via Supabase Edge Functions |
 
 ---
 
@@ -221,9 +223,49 @@ This MVP is a **Plaid-mirrored savings dashboard** with gamified bucket mechanic
 
 ---
 
-## 11. Future Scope (Post-MVP)
+## 11. Bucket Types — Save & Spend
+
+### Two types of buckets
+
+**Save bucket** — You're saving for something specific. You set a goal, auto-deposit toward it, and when you hit the target the virtual card unlocks and you can buy the thing. Then you archive the bucket. Examples: Japan trip, Air Max, new laptop.
+
+**Spend bucket** — You define a monthly budget. The virtual card is active from day one. Every time you use the card the balance goes down. When it hits zero the card freezes — you can't spend more. It renews automatically every month. Examples: Starbucks $50/mo, DoorDash $80/mo, Netflix $15/mo.
+
+### UX of the Spend bucket
+
+**Creation:**
+The user picks "Spend" instead of "Save" when creating a bucket. They set the name, monthly amount, and renewal date. A virtual card is generated immediately — no waiting. From day one they have their Starbucks card with $50 available.
+
+**During the month:**
+Every card transaction reduces the bucket balance in real time. $50 budget minus $7 coffee = $43 remaining. The app sends a notification at 80% spent — "You have $10 left in your Starbucks bucket."
+
+**Hitting zero:**
+The card freezes automatically. No more spending from that bucket until renewal. This is the most powerful moment — Zuma stops you, unlike a credit card. The user can see exactly why and decide to move funds from another bucket or wait for renewal.
+
+**Automatic renewal:**
+On the renewal date, auto-deposit recharges the bucket and the card reactivates. The user doesn't have to do anything — their Starbucks budget is ready on the first of each month.
+
+### Column integration for Spend buckets
+
+Column supports persistent virtual cards with configurable spending limits via API. The flow: create spend bucket → Column issues a card with a spending limit equal to the bucket amount → each transaction reduces available balance → at zero Column freezes the card automatically → on renewal date reset the limit via API and reactivate. No new card each month — same card, limit reset. This is key for UX because the user saves the card in Apple Pay permanently.
+
+### Why Spend buckets matter for Zuma
+
+1. **Permanent Apple Pay cards** — not disposable, it's their Starbucks card forever
+2. **Recurring interchange revenue** — every $7 coffee generates interchange every month, not just once
+3. **Daily engagement** — users open the app to check remaining budget, not just when they hit a savings goal
+4. **Credit card replacement** — replaces "charge everything and see the damage at month end" with "I know exactly how much I have for this"
+
+### Naming in the app
+
+- **Save** — for specific goals, card unlocks on completion
+- **Spend** — for recurring budgets, card active from day one
+
+## 12. Future Scope (Post-MVP)
+
 
 - Column.com integration for real virtual card issuance
+- Spend bucket implementation (budget buckets with persistent cards)
 - KYC / identity verification
 - APY on savings buckets
 - Referral program (free card creation for referring a friend)
@@ -236,7 +278,7 @@ This MVP is a **Plaid-mirrored savings dashboard** with gamified bucket mechanic
 
 ---
 
-## 12. Open Questions
+## 13. Open Questions
 
 - What is the minimum balance threshold before a card can be generated? (Column.com pricing TBD)
 - Will Plaid sandbox be sufficient for beta testing or do we need live credentials?

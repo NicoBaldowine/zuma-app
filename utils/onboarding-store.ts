@@ -3,7 +3,7 @@ import type { BucketColorKey } from '@/types';
 export type PendingBucket = {
   name: string;
   icon: string;
-  iconType: 'icon' | 'emoji';
+  iconType: 'icon' | 'emoji' | 'pixel';
   colorKey: BucketColorKey;
   customColor?: string;
   targetAmount: number;

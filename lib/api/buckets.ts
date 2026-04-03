@@ -18,7 +18,7 @@ export async function createBucket(params: {
   userId?: string;
   name: string;
   icon: string;
-  iconType: 'icon' | 'emoji';
+  iconType: 'icon' | 'emoji' | 'pixel';
   colorKey: BucketColorKey;
   customColor?: string;
   targetAmount: number;

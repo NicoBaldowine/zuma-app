@@ -37,8 +37,6 @@ export default function PersonalInfoScreen() {
   const fields = [
     { label: 'Name', value: profile?.fullName ?? 'Not added' },
     { label: 'Email', value: profile?.email ?? 'Not added' },
-    { label: 'Phone', value: profile?.phone ?? 'Not added' },
-    { label: 'Date of birth', value: profile?.dateOfBirth ?? 'Not added' },
   ];
 
   return (
@@ -52,7 +50,7 @@ export default function PersonalInfoScreen() {
         </Pressable>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="always">
         <Text style={[styles.title, { color: textColor }]}>Personal{'\n'}information</Text>
 
         {/* Google connection banner */}
@@ -75,6 +73,8 @@ export default function PersonalInfoScreen() {
             </Text>
           </View>
         ))}
+
+        <View style={styles.deleteSpacer} />
 
         <Pressable
           onPress={() => {
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   stickyClose: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 4 },
   closeCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-end' },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 20 },
+  content: { paddingHorizontal: 20, flexGrow: 1 },
   title: { fontSize: 36, fontFamily: Fonts.medium, lineHeight: 36, letterSpacing: 36 * -0.05, marginBottom: 32, marginTop: 8 },
   banner: {
     flexDirection: 'row',
@@ -120,9 +120,12 @@ const styles = StyleSheet.create({
   },
   fieldLabel: { fontSize: 13, fontFamily: Fonts.regular, marginBottom: 4 },
   fieldValue: { fontSize: 16, fontFamily: Fonts.medium },
+  deleteSpacer: {
+    flex: 1,
+    minHeight: 60,
+  },
   deleteButton: {
     alignSelf: 'center',
-    marginTop: 40,
     marginBottom: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,

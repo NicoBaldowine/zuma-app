@@ -1,3 +1,4 @@
+import React from 'react';
 import { StyleSheet, View, Text, Image } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -10,7 +11,8 @@ import { useEffect } from 'react';
 import type { Bucket } from '@/types';
 import { getBucketPalette } from '@/constants/bucket-colors';
 import { Fonts } from '@/constants/theme';
-import { calcProgress } from '@/utils/format';
+import { calcProgress, formatCurrency } from '@/utils/format';
+import { PixelIcon } from '@/components/shared/pixel-icon';
 import { getBucketIcon } from '@/utils/bucket-icons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -18,11 +20,11 @@ type BucketCardExpandedProps = {
   bucket: Bucket;
 };
 
-export function BucketCardExpanded({ bucket }: BucketCardExpandedProps) {
+export const BucketCardExpanded = React.memo(function BucketCardExpanded({ bucket }: BucketCardExpandedProps) {
   const colorScheme = useColorScheme();
   const palette = getBucketPalette(bucket.colorKey, colorScheme, bucket.customColor);
   const progress = calcProgress(bucket.currentAmount, bucket.targetAmount);
-  const Icon = bucket.iconType !== 'emoji' ? getBucketIcon(bucket.icon) : null;
+  const Icon = bucket.iconType === 'icon' ? getBucketIcon(bucket.icon) : null;
 
   const fillWidth = useSharedValue(0);
 
@@ -40,7 +42,9 @@ export function BucketCardExpanded({ bucket }: BucketCardExpandedProps) {
   return (
     <View style={[styles.card, { backgroundColor: palette.main }]}>
       <View style={styles.iconCircle}>
-        {bucket.iconType === 'emoji' ? (
+        {bucket.iconType === 'pixel' ? (
+          <PixelIcon data={JSON.parse(bucket.icon)} size={22} color={palette.cardText} />
+        ) : bucket.iconType === 'emoji' ? (
           <Text style={{ fontSize: 20 }}>{bucket.icon}</Text>
         ) : (
           Icon && <Icon size={22} color={palette.cardText} weight="fill" />
@@ -50,6 +54,12 @@ export function BucketCardExpanded({ bucket }: BucketCardExpandedProps) {
       <Text style={[styles.name, { color: palette.cardText }]}>
         {bucket.name}
       </Text>
+
+      {bucket.isMain && (
+        <Text style={[styles.mainAmount, { color: palette.cardText }]}>
+          {formatCurrency(bucket.currentAmount)}
+        </Text>
+      )}
 
       {!bucket.isMain && (
         <View style={styles.progressRow}>
@@ -74,7 +84,7 @@ export function BucketCardExpanded({ bucket }: BucketCardExpandedProps) {
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
@@ -97,6 +107,13 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     letterSpacing: 36 * -0.05,
     marginBottom: 20,
+  },
+  mainAmount: {
+    fontSize: 28,
+    fontFamily: Fonts.medium,
+    letterSpacing: 28 * -0.05,
+    opacity: 0.7,
+    marginTop: -12,
   },
   progressRow: {
     flexDirection: 'row',

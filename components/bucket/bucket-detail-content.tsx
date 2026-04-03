@@ -50,7 +50,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 2,
-    paddingLeft: 4,
   },
   transactionsCard: {
     borderRadius: 20,

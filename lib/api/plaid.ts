@@ -62,3 +62,13 @@ export async function hasLinkedAccount(userId: string = getCurrentUserId()): Pro
 
   return !!data;
 }
+
+export async function getLinkedAccountMask(userId: string = getCurrentUserId()): Promise<string | undefined> {
+  const { data } = await supabase
+    .from('linked_accounts')
+    .select('account_mask')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  return data?.account_mask ?? undefined;
+}

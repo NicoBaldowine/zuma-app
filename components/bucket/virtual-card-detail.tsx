@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { Snowflake, Play, Eye, EyeSlash, DotsThree, AppleLogo } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
+import { PixelIcon } from '@/components/shared/pixel-icon';
 
 import type { VirtualCard } from '@/types';
 import type { BucketColorPalette } from '@/constants/bucket-colors';
@@ -14,7 +15,7 @@ type VirtualCardDetailProps = {
   card: VirtualCard;
   bucketName: string;
   bucketIcon: string;
-  bucketIconType: 'icon' | 'emoji';
+  bucketIconType: 'icon' | 'emoji' | 'pixel';
   palette: BucketColorPalette;
   onStatusChange: () => void;
   onMore: () => void;
@@ -32,7 +33,7 @@ export function VirtualCardDetail({
   const [showDetails, setShowDetails] = useState(false);
   const [toggling, setToggling] = useState(false);
   const isFrozen = card.status === 'frozen';
-  const BucketIcon = bucketIconType !== 'emoji' ? getBucketIcon(bucketIcon) : null;
+  const BucketIcon = bucketIconType === 'icon' ? getBucketIcon(bucketIcon) : null;
 
   const maskedNumber = card.cardNumber.replace(/\d{4}(?=.*\d{4})/g, '••••');
   const displayNumber = showDetails ? card.cardNumber : maskedNumber;
@@ -63,7 +64,9 @@ export function VirtualCardDetail({
       <View style={[styles.card, { backgroundColor: palette.main }, isFrozen && styles.cardFrozen]}>
         <View style={styles.cardRow}>
           <View style={styles.cardIconCircle}>
-            {bucketIconType === 'emoji' ? (
+            {bucketIconType === 'pixel' ? (
+              <PixelIcon data={JSON.parse(bucketIcon)} size={16} color={palette.cardText} />
+            ) : bucketIconType === 'emoji' ? (
               <Text style={{ fontSize: 14 }}>{bucketIcon}</Text>
             ) : (
               BucketIcon && <BucketIcon size={16} color={palette.cardText} weight="fill" />

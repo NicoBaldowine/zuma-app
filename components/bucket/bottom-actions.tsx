@@ -1,4 +1,5 @@
 import { StyleSheet, View, Pressable, Text } from 'react-native';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 
 import { Fonts } from '@/constants/theme';
@@ -20,12 +21,21 @@ export function BottomActions({
 }: BottomActionsProps) {
   return (
     <View style={styles.container}>
-      <Pressable
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onMore(); }}
-        style={[styles.button, styles.moreButton]}
-      >
-        <Text style={[styles.buttonText, { color: 'rgba(255,255,255,0.8)' }]}>More</Text>
-      </Pressable>
+      <View style={[styles.button, styles.moreButton]}>
+        <BlurView
+          intensity={60}
+          tint="dark"
+          experimentalBlurMethod="dimezisBlurView"
+          style={styles.moreBlur}
+        >
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onMore(); }}
+            style={styles.moreInner}
+          >
+            <Text style={[styles.buttonText, { color: 'rgba(255,255,255,0.8)' }]}>More</Text>
+          </Pressable>
+        </BlurView>
+      </View>
 
       <Pressable
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPrimary(); }}
@@ -54,7 +64,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   moreButton: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    overflow: 'hidden',
+  },
+  moreBlur: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  moreInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonText: {
     fontSize: 16,

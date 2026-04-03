@@ -1,7 +1,8 @@
+import React, { useMemo } from 'react';
 import { StyleSheet, Pressable, View, Text, Image } from 'react-native';
-import { useMemo } from 'react';
 import { Repeat, CreditCard } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
+import { PixelIcon } from '@/components/shared/pixel-icon';
 
 import type { Bucket } from '@/types';
 import { getBucketPalette } from '@/constants/bucket-colors';
@@ -18,11 +19,11 @@ type BucketCardProps = {
   onPress?: (bucket: Bucket) => void;
 };
 
-export function BucketCard({ bucket, hasAutoDeposit, hasVirtualCard, isLast, onPress }: BucketCardProps) {
+export const BucketCard = React.memo(function BucketCard({ bucket, hasAutoDeposit, hasVirtualCard, isLast, onPress }: BucketCardProps) {
   const colorScheme = useColorScheme();
   const palette = getBucketPalette(bucket.colorKey, colorScheme, bucket.customColor);
   const progress = calcProgress(bucket.currentAmount, bucket.targetAmount);
-  const Icon = useMemo(() => bucket.iconType !== 'emoji' ? getBucketIcon(bucket.icon) : null, [bucket.icon, bucket.iconType]);
+  const Icon = useMemo(() => bucket.iconType === 'icon' ? getBucketIcon(bucket.icon) : null, [bucket.icon, bucket.iconType]);
 
   const content = (
     <View style={[styles.card, { backgroundColor: palette.main }, isLast && styles.cardLast]}>
@@ -37,7 +38,9 @@ export function BucketCard({ bucket, hasAutoDeposit, hasVirtualCard, isLast, onP
       )}
       <View style={styles.row}>
         <View style={styles.iconCircle}>
-          {bucket.iconType === 'emoji' ? (
+          {bucket.iconType === 'pixel' ? (
+            <PixelIcon data={JSON.parse(bucket.icon)} size={22} color={palette.cardText} />
+          ) : bucket.iconType === 'emoji' ? (
             <Text style={{ fontSize: 20 }}>{bucket.icon}</Text>
           ) : (
             Icon && <Icon size={22} color={palette.cardText} weight="fill" />
@@ -76,7 +79,7 @@ export function BucketCard({ bucket, hasAutoDeposit, hasVirtualCard, isLast, onP
     return <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(bucket); }}>{content}</Pressable>;
   }
   return content;
-}
+});
 
 const styles = StyleSheet.create({
   card: {

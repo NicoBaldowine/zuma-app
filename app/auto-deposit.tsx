@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
-  StyleSheet, View, Text, Pressable, TextInput, Modal, ScrollView, Keyboard,
+  StyleSheet, View, Text, Pressable, Modal, ScrollView, Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
-  X, CaretRight, CaretDown, Check, ArrowDown,
+  X, CaretRight, Check, ArrowDown,
   Clock, CalendarBlank, Target, Repeat,
 } from 'phosphor-react-native';
 
@@ -17,7 +17,7 @@ import { getBucketIcon } from '@/utils/bucket-icons';
 import { formatCurrency, formatAmountInput, parseAmountInput } from '@/utils/format';
 import { useBuckets } from '@/contexts/buckets-context';
 import { useAutoDeposits } from '@/contexts/auto-deposits-context';
-import { SheetListItem } from '@/components/shared';
+import { SheetListItem, FormField, FormSelect } from '@/components/shared';
 import type { Bucket, AutoDepositFrequency, AutoDepositEnd } from '@/types';
 
 const FREQUENCY_OPTIONS: { key: AutoDepositFrequency; label: string }[] = [
@@ -38,6 +38,8 @@ const END_OPTIONS: { key: AutoDepositEnd; label: string; short: string; icon: an
 export default function AutoDepositScreen() {
   const router = useRouter();
   const { bucketId } = useLocalSearchParams<{ bucketId: string }>();
+
+  // Note: Plaid gating handled by home screen ActionBar before navigation
 
   const { buckets, mainBucket: ctxMainBucket } = useBuckets();
   const { createRule } = useAutoDeposits();
@@ -131,51 +133,29 @@ export default function AutoDepositScreen() {
         </View>
 
         {/* Amount */}
-        <View style={[styles.field, { backgroundColor: surfaceColor }]}>
-          {amount.length > 0 && (
-            <Text style={[styles.fieldLabel, { color: secondaryColor }]}>Amount</Text>
-          )}
-          <TextInput
-            style={[styles.fieldInput, { color: textColor }]}
-            placeholder="Amount"
-            placeholderTextColor={secondaryColor}
-            value={amount}
-            onChangeText={(v) => setAmount(formatAmountInput(v))}
-            keyboardType="decimal-pad"
-          />
-        </View>
+        <FormField
+          label="Amount"
+          value={amount}
+          onChangeText={(v) => setAmount(formatAmountInput(v))}
+          keyboardType="decimal-pad"
+          style={{ marginBottom: 8 }}
+        />
 
         {/* Frequency & End dropdowns */}
         <View style={styles.pickersRow}>
-          <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFrequencyPickerVisible(true); }}
-            style={[styles.field, styles.pickerButton, { backgroundColor: surfaceColor }]}
-          >
-            {frequency && (
-              <Text style={[styles.fieldLabel, { color: secondaryColor }]}>Frequency</Text>
-            )}
-            <View style={styles.pickerInner}>
-              <Text style={[styles.fieldValue, { color: frequency ? textColor : secondaryColor }]}>
-                {frequency ? FREQUENCY_OPTIONS.find((o) => o.key === frequency)?.label : 'Frequency'}
-              </Text>
-              <CaretDown size={14} color={secondaryColor} weight="bold" />
-            </View>
-          </Pressable>
+          <FormSelect
+            label="Frequency"
+            value={frequency ? FREQUENCY_OPTIONS.find((o) => o.key === frequency)?.label : null}
+            onPress={() => setFrequencyPickerVisible(true)}
+            style={{ flex: 1 }}
+          />
 
-          <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEndPickerVisible(true); }}
-            style={[styles.field, styles.pickerButton, { backgroundColor: surfaceColor }]}
-          >
-            {endCondition && (
-              <Text style={[styles.fieldLabel, { color: secondaryColor }]}>Ends</Text>
-            )}
-            <View style={styles.pickerInner}>
-              <Text style={[styles.fieldValue, { color: endCondition ? textColor : secondaryColor }]}>
-                {endCondition ? END_OPTIONS.find((o) => o.key === endCondition)?.short : 'Ends'}
-              </Text>
-              <CaretDown size={14} color={secondaryColor} weight="bold" />
-            </View>
-          </Pressable>
+          <FormSelect
+            label="Ends"
+            value={endCondition ? END_OPTIONS.find((o) => o.key === endCondition)?.short : null}
+            onPress={() => setEndPickerVisible(true)}
+            style={{ flex: 1 }}
+          />
         </View>
 
         <View style={{ height: 120 }} />
@@ -203,9 +183,9 @@ export default function AutoDepositScreen() {
               setSaving(false);
             }
           }}
-          style={[styles.actionButton, { backgroundColor: isValid && !saving ? textColor : surfaceColor }]}
+          style={[styles.actionButton, { backgroundColor: textColor, opacity: isValid && !saving ? 1 : 0.25 }]}
         >
-          <Text style={[styles.actionButtonText, { color: isValid && !saving ? bgColor : secondaryColor }]}>
+          <Text style={[styles.actionButtonText, { color: bgColor }]}>
             {saving ? 'Setting up...' : 'Set up auto-deposit'}
           </Text>
         </Pressable>
@@ -330,32 +310,7 @@ const styles = StyleSheet.create({
   pillSub: { fontSize: 13, fontFamily: Fonts.regular },
   arrowOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', top: -4, zIndex: 10, pointerEvents: 'none' },
   arrowCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 3 },
-  field: {
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    minHeight: 56,
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  fieldLabel: {
-    fontSize: 12,
-    fontFamily: Fonts.regular,
-    marginBottom: 2,
-  },
-  fieldInput: {
-    fontSize: 16,
-    fontFamily: Fonts.medium,
-    letterSpacing: 0,
-    padding: 0,
-  },
-  fieldValue: {
-    fontSize: 16,
-    fontFamily: Fonts.medium,
-  },
   pickersRow: { flexDirection: 'row', gap: 12 },
-  pickerButton: { flex: 1 },
-  pickerInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   bottomButton: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12 },
   actionButton: { height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   actionButtonText: { fontSize: 16, fontFamily: Fonts.bold },

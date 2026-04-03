@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, Dimensions, useColorScheme } from 'react-native';
+import { StyleSheet, View, Text, Dimensions, useColorScheme, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -164,14 +164,16 @@ export function CelebrationProvider({ children }: { children: React.ReactNode })
   return (
     <CelebrationContext.Provider value={{ celebrate, showToast }}>
       {children}
-      {active && (
+      <Modal visible={active} transparent animationType="none" statusBarTranslucent>
         <View style={styles.confettiContainer} pointerEvents="none">
           {Array.from({ length: CONFETTI_COUNT }).map((_, i) => (
             <ConfettiPiece key={i} index={i} active={active} />
           ))}
         </View>
-      )}
-      <Toast message={toastMessage} visible={toastVisible} />
+      </Modal>
+      <Modal visible={toastVisible} transparent animationType="none" statusBarTranslucent>
+        <Toast message={toastMessage} visible={toastVisible} />
+      </Modal>
     </CelebrationContext.Provider>
   );
 }

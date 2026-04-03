@@ -10,6 +10,8 @@ import { Fonts } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { getCurrentUserId } from '@/lib/auth/get-user-id';
 
+const MAX_MESSAGE = 500;
+
 export default function FeedbackScreen() {
   const router = useRouter();
   const bgColor = useThemeColor({}, 'background');
@@ -86,23 +88,25 @@ export default function FeedbackScreen() {
               placeholder="Tell us what's on your mind..."
               placeholderTextColor={secondaryColor}
               value={message}
-              onChangeText={setMessage}
+              onChangeText={(t) => setMessage(t.slice(0, MAX_MESSAGE))}
               multiline
               textAlignVertical="top"
+              maxLength={MAX_MESSAGE}
             />
+            <Text style={[styles.charCount, { color: secondaryColor }]}>
+              {message.length}/{MAX_MESSAGE}
+            </Text>
           </View>
-        </View>
-      </View>
 
-      <View style={[styles.bottomButton, { paddingBottom: insets.bottom + 8 }]}>
-        <Pressable
-          onPress={handleSend}
-          style={[styles.sendButton, { backgroundColor: isValid && !sending ? textColor : surfaceColor }]}
-        >
-          <Text style={[styles.sendButtonText, { color: isValid && !sending ? bgColor : secondaryColor }]}>
-            {sending ? 'Sending...' : 'Send feedback'}
-          </Text>
-        </Pressable>
+          <Pressable
+            onPress={handleSend}
+            style={[styles.sendButton, { backgroundColor: textColor, opacity: isValid && !sending ? 1 : 0.25 }]}
+          >
+            <Text style={[styles.sendButtonText, { color: bgColor }]}>
+              {sending ? 'Sending...' : 'Send feedback'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -118,7 +122,7 @@ const styles = StyleSheet.create({
   field: {
     borderRadius: 16,
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 14,
     minHeight: 56,
     justifyContent: 'center',
   },
@@ -145,13 +149,11 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 24,
   },
-  bottomButton: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    paddingTop: 12,
+  charCount: {
+    fontSize: 12,
+    fontFamily: Fonts.regular,
+    textAlign: 'right',
+    marginTop: 4,
   },
   sendButton: {
     height: 56,

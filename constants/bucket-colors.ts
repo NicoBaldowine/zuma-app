@@ -154,6 +154,41 @@ export const BucketColors: Record<BucketColorKey, BucketColorPalette> = {
     cardText: '#281A3D',
     darkText: '#B08CDB',
   },
+  clay: {
+    dark: '#2E1E18',
+    main: '#C4826A',
+    light: '#E8C4B4',
+    cardText: '#2E1E18',
+    darkText: '#C4826A',
+  },
+  denim: {
+    dark: '#0C1628',
+    main: '#4A6FA5',
+    light: '#B0C4E0',
+    cardText: '#FFFFFF',
+    darkText: '#4A6FA5',
+  },
+  olive: {
+    dark: '#1A1E0A',
+    main: '#808A3B',
+    light: '#C8D08A',
+    cardText: '#1A1E0A',
+    darkText: '#808A3B',
+  },
+  wine: {
+    dark: '#2A0A18',
+    main: '#8C3A5E',
+    light: '#D4A0B8',
+    cardText: '#FFFFFF',
+    darkText: '#8C3A5E',
+  },
+  sand: {
+    dark: '#2E2818',
+    main: '#D4C4A0',
+    light: '#F0E8D4',
+    cardText: '#2E2818',
+    darkText: '#D4C4A0',
+  },
   custom: {
     dark: '#1C1C1E',
     main: '#B0B0B0',
@@ -178,8 +213,28 @@ const NeutralLight: BucketColorPalette = {
   darkText: '#6B7280',
 };
 
-export function getBucketPalette(colorKey: BucketColorKey, scheme?: 'light' | 'dark', customColor?: string): BucketColorPalette {
-  if (colorKey === 'neutral' && scheme === 'light') return NeutralLight;
+const NeutralGold: BucketColorPalette = {
+  dark: '#1A1508',
+  main: '#2E2510',
+  light: '#3D3020',
+  cardText: '#F5E6C8',
+  darkText: '#D4AF37',
+};
+
+const NeutralLavender: BucketColorPalette = {
+  dark: '#EDE4FF',
+  main: '#DDD0F5',
+  light: '#CFC0E8',
+  cardText: '#2D1B4E',
+  darkText: '#7C5CBF',
+};
+
+export function getBucketPalette(colorKey: BucketColorKey, scheme?: string, customColor?: string): BucketColorPalette {
+  if (colorKey === 'neutral') {
+    if (scheme === 'light') return NeutralLight;
+    if (scheme === 'gold') return NeutralGold;
+    if (scheme === 'lavender') return NeutralLavender;
+  }
   if (colorKey === 'custom' && customColor) {
     return {
       dark: '#1C1C1E',

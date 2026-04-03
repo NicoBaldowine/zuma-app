@@ -85,9 +85,14 @@ export function AutoDepositsProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const pauseRule = useCallback(async (id: string, paused: boolean) => {
-    await apiPause(id, paused);
-    setRules((prev) => prev.map((r) => (r.id === id ? { ...r, isPaused: paused } : r)));
-  }, []);
+    const rule = rules.find((r) => r.id === id);
+    await apiPause(id, paused, rule?.frequency);
+    if (!paused && rule) {
+      await load();
+    } else {
+      setRules((prev) => prev.map((r) => (r.id === id ? { ...r, isPaused: paused } : r)));
+    }
+  }, [rules]);
 
   return (
     <AutoDepositsContext.Provider

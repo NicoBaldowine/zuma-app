@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { StyleSheet, View, Text, Pressable, Dimensions, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { X, ShieldCheck, Snowflake, Eye } from 'phosphor-react-native';
+import { X, ShieldCheck, Snowflake, AppleLogo } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
@@ -12,8 +12,10 @@ import { Fonts } from '@/constants/theme';
 import { getBucketPalette } from '@/constants/bucket-colors';
 import { getBucketIcon } from '@/utils/bucket-icons';
 import { formatCurrency } from '@/utils/format';
+import { PixelIcon } from '@/components/shared/pixel-icon';
 import { useBuckets } from '@/contexts/buckets-context';
 import { VisaLogo } from '@/components/shared/visa-logo';
+import { ZumaLogo } from '@/components/shared/zuma-logo';
 import { supabase } from '@/lib/supabase';
 import { getCurrentUserId } from '@/lib/auth/get-user-id';
 
@@ -32,16 +34,16 @@ const BENEFITS = [
     description: 'Instantly freeze your card if you change your mind before using it.',
   },
   {
-    icon: Eye,
-    title: 'Full visibility',
-    description: 'Track exactly when and where your card is used in real time.',
+    icon: AppleLogo,
+    title: 'Works with Apple Pay',
+    description: 'Add your Zuma card to Apple Wallet and pay anywhere with a tap.',
   },
 ];
 
 type CardProps = {
   bucketName: string;
   bucketIcon: string;
-  bucketIconType: 'icon' | 'emoji';
+  bucketIconType: 'icon' | 'emoji' | 'pixel';
   amount: number;
   mainColor: string;
   darkColor: string;
@@ -52,7 +54,7 @@ type CardProps = {
 
 /* ─── Design 1: Classic ─── */
 function CardClassic({ bucketName, bucketIcon, bucketIconType, amount, mainColor, cardTextColor }: CardProps) {
-  const BucketIcon = bucketIconType !== 'emoji' ? getBucketIcon(bucketIcon) : null;
+  const BucketIcon = bucketIconType === 'icon' ? getBucketIcon(bucketIcon) : null;
 
   return (
     <View style={[cardStyles.card, { backgroundColor: mainColor }]}>
@@ -70,24 +72,23 @@ function CardClassic({ bucketName, bucketIcon, bucketIconType, amount, mainColor
       />
       <View style={cardStyles.top}>
         <View style={cardStyles.iconCircle}>
-          {bucketIconType === 'emoji' ? (
+          {bucketIconType === 'pixel' ? (
+            <PixelIcon data={JSON.parse(bucketIcon)} size={22} color={cardTextColor} />
+          ) : bucketIconType === 'emoji' ? (
             <Text style={{ fontSize: 22 }}>{bucketIcon}</Text>
           ) : (
             BucketIcon && <BucketIcon size={24} color={cardTextColor} weight="fill" />
           )}
         </View>
-        <View style={{ marginTop: -12 }}>
-          <VisaLogo width={60} height={60} color={cardTextColor} />
-        </View>
+        <ZumaLogo width={80} height={30} color={cardTextColor} />
       </View>
       <View style={cardStyles.bottom}>
-        <View style={{ flex: 1 }}>
+        <View>
           <Text style={[cardStyles.name, { color: cardTextColor }]} numberOfLines={1}>{bucketName}</Text>
-          <Text style={[cardStyles.sub, { color: cardTextColor }]}>Virtual Card</Text>
+          <Text style={[cardStyles.sub, { color: cardTextColor }]}>{formatCurrency(amount)}</Text>
         </View>
-        <View style={cardStyles.amountContainer}>
-          <Text style={[cardStyles.amount, { color: cardTextColor }]}>{formatCurrency(amount)}</Text>
-          <Text style={[cardStyles.sub, { color: cardTextColor }]}>Available</Text>
+        <View style={{ marginBottom: -8 }}>
+          <VisaLogo width={48} height={48} color={cardTextColor} />
         </View>
       </View>
     </View>
@@ -96,7 +97,7 @@ function CardClassic({ bucketName, bucketIcon, bucketIconType, amount, mainColor
 
 /* ─── Design 2: Dark Inverted ─── */
 function CardDark({ bucketName, bucketIcon, bucketIconType, amount, mainColor, darkColor, lightColor }: CardProps) {
-  const BucketIcon = bucketIconType !== 'emoji' ? getBucketIcon(bucketIcon) : null;
+  const BucketIcon = bucketIconType === 'icon' ? getBucketIcon(bucketIcon) : null;
 
   return (
     <View style={[cardStyles.card, { backgroundColor: darkColor }]}>
@@ -108,24 +109,23 @@ function CardDark({ bucketName, bucketIcon, bucketIconType, amount, mainColor, d
       />
       <View style={cardStyles.top}>
         <View style={[cardStyles.iconCircle, { backgroundColor: `${mainColor}30` }]}>
-          {bucketIconType === 'emoji' ? (
+          {bucketIconType === 'pixel' ? (
+            <PixelIcon data={JSON.parse(bucketIcon)} size={22} color={mainColor} />
+          ) : bucketIconType === 'emoji' ? (
             <Text style={{ fontSize: 22 }}>{bucketIcon}</Text>
           ) : (
             BucketIcon && <BucketIcon size={24} color={mainColor} weight="fill" />
           )}
         </View>
-        <View style={{ marginTop: -12 }}>
-          <VisaLogo width={60} height={60} color={lightColor} />
-        </View>
+        <ZumaLogo width={80} height={30} color={lightColor} />
       </View>
       <View style={cardStyles.bottom}>
-        <View style={{ flex: 1 }}>
+        <View>
           <Text style={[cardStyles.name, { color: lightColor }]} numberOfLines={1}>{bucketName}</Text>
-          <Text style={[cardStyles.sub, { color: lightColor }]}>Virtual Card</Text>
+          <Text style={[cardStyles.sub, { color: lightColor }]}>{formatCurrency(amount)}</Text>
         </View>
-        <View style={cardStyles.amountContainer}>
-          <Text style={[cardStyles.amount, { color: mainColor }]}>{formatCurrency(amount)}</Text>
-          <Text style={[cardStyles.sub, { color: lightColor }]}>Available</Text>
+        <View style={{ marginBottom: -8 }}>
+          <VisaLogo width={48} height={48} color={lightColor} />
         </View>
       </View>
     </View>
@@ -134,7 +134,7 @@ function CardDark({ bucketName, bucketIcon, bucketIconType, amount, mainColor, d
 
 /* ─── Design 3: Light Pattern ─── */
 function CardPattern({ bucketName, bucketIcon, bucketIconType, amount, mainColor, darkColor, lightColor }: CardProps) {
-  const BucketIcon = bucketIconType !== 'emoji' ? getBucketIcon(bucketIcon) : null;
+  const BucketIcon = bucketIconType === 'icon' ? getBucketIcon(bucketIcon) : null;
 
   const patternIcons = useMemo(() => {
     const cols = 8;
@@ -152,7 +152,9 @@ function CardPattern({ bucketName, bucketIcon, bucketIconType, amount, mainColor
       <View style={cardStyles.patternGrid}>
         {patternIcons.map((i) => (
           <View key={i} style={cardStyles.patternCell}>
-            {bucketIconType === 'emoji' ? (
+            {bucketIconType === 'pixel' ? (
+              <View style={{ opacity: 0.1 }}><PixelIcon data={JSON.parse(bucketIcon)} size={20} color={darkColor} /></View>
+            ) : bucketIconType === 'emoji' ? (
               <Text style={{ fontSize: 20, opacity: 0.1 }}>{bucketIcon}</Text>
             ) : (
               BucketIcon && <BucketIcon size={20} color={darkColor} weight="fill" style={{ opacity: 0.08 }} />
@@ -162,24 +164,104 @@ function CardPattern({ bucketName, bucketIcon, bucketIconType, amount, mainColor
       </View>
 
       <View style={cardStyles.top}>
-        <Text style={[cardStyles.patternName, { color: darkColor }]} numberOfLines={1}>
-          {bucketName}
-        </Text>
-        <View style={{ marginTop: -12 }}>
-          <VisaLogo width={60} height={60} color={darkColor} />
-        </View>
-      </View>
-      <View style={cardStyles.bottom}>
-        <View>
-          <Text style={[cardStyles.patternAmount, { color: darkColor }]}>{formatCurrency(amount)}</Text>
-          <Text style={[cardStyles.sub, { color: darkColor }]}>Available</Text>
-        </View>
+        <ZumaLogo width={80} height={30} color={darkColor} />
         <View style={[cardStyles.iconCircle, { backgroundColor: `${darkColor}15` }]}>
-          {bucketIconType === 'emoji' ? (
+          {bucketIconType === 'pixel' ? (
+            <PixelIcon data={JSON.parse(bucketIcon)} size={22} color={mainColor} />
+          ) : bucketIconType === 'emoji' ? (
             <Text style={{ fontSize: 22 }}>{bucketIcon}</Text>
           ) : (
             BucketIcon && <BucketIcon size={24} color={mainColor} weight="fill" />
           )}
+        </View>
+      </View>
+      <View style={cardStyles.bottom}>
+        <View>
+          <Text style={[cardStyles.patternName, { color: darkColor }]} numberOfLines={1}>{bucketName}</Text>
+          <Text style={[cardStyles.sub, { color: darkColor }]}>{formatCurrency(amount)}</Text>
+        </View>
+        <View style={{ marginBottom: -8 }}>
+          <VisaLogo width={48} height={48} color={darkColor} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/* ─── Design 4: Minimal White ─── */
+function CardMinimal({ bucketName, bucketIcon, bucketIconType, amount, mainColor }: CardProps) {
+  const BucketIcon = bucketIconType === 'icon' ? getBucketIcon(bucketIcon) : null;
+
+  return (
+    <View style={[cardStyles.card, { backgroundColor: '#FFFFFF' }]}>
+      <LinearGradient
+        colors={['#F0F0F0', '#FFFFFF', '#FFFFFF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Centered big icon */}
+      <View style={cardStyles.minimalCenter}>
+        {bucketIconType === 'pixel' ? (
+          <PixelIcon data={JSON.parse(bucketIcon)} size={80} color={mainColor} />
+        ) : bucketIconType === 'emoji' ? (
+          <Text style={{ fontSize: 80 }}>{bucketIcon}</Text>
+        ) : (
+          BucketIcon && <BucketIcon size={80} color={mainColor} weight="fill" />
+        )}
+      </View>
+
+      <View style={cardStyles.minimalBottom}>
+        <View>
+          <Text style={[cardStyles.minimalName, { color: '#1A1A1A' }]} numberOfLines={2}>
+            {bucketName}
+          </Text>
+          <Text style={[cardStyles.minimalAmount, { color: '#1A1A1A' }]}>
+            {formatCurrency(amount)}
+          </Text>
+        </View>
+        <View style={{ marginBottom: -8 }}>
+          <VisaLogo width={48} height={48} color="#1A1A1A" />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/* ─── Design 5: Minimal Color ─── */
+function CardMinimalColor({ bucketName, bucketIcon, bucketIconType, amount, mainColor, cardTextColor }: CardProps) {
+  const BucketIcon = bucketIconType === 'icon' ? getBucketIcon(bucketIcon) : null;
+
+  return (
+    <View style={[cardStyles.card, { backgroundColor: mainColor }]}>
+      <LinearGradient
+        colors={['rgba(255,255,255,0.15)', 'transparent', 'rgba(0,0,0,0.1)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Centered big icon */}
+      <View style={cardStyles.minimalCenter}>
+        {bucketIconType === 'pixel' ? (
+          <PixelIcon data={JSON.parse(bucketIcon)} size={80} color={cardTextColor} />
+        ) : bucketIconType === 'emoji' ? (
+          <Text style={{ fontSize: 80 }}>{bucketIcon}</Text>
+        ) : (
+          BucketIcon && <BucketIcon size={80} color={cardTextColor} weight="fill" />
+        )}
+      </View>
+
+      <View style={cardStyles.minimalBottom}>
+        <View>
+          <Text style={[cardStyles.minimalName, { color: cardTextColor }]} numberOfLines={2}>
+            {bucketName}
+          </Text>
+          <Text style={[cardStyles.minimalAmount, { color: cardTextColor }]}>
+            {formatCurrency(amount)}
+          </Text>
+        </View>
+        <View style={{ marginBottom: -8 }}>
+          <VisaLogo width={48} height={48} color={cardTextColor} />
         </View>
       </View>
     </View>
@@ -255,6 +337,27 @@ const cardStyles = StyleSheet.create({
     height: CARD_WIDTH / 8,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  minimalCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  minimalBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  minimalName: {
+    fontSize: 16,
+    fontFamily: Fonts.semiBold,
+    maxWidth: CARD_WIDTH * 0.55,
+  },
+  minimalAmount: {
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+    opacity: 0.5,
+    marginTop: 2,
   },
 });
 
@@ -370,12 +473,18 @@ export default function VirtualCardScreen() {
             <View style={{ marginRight: 16 }}>
               <CardClassic {...cardProps} />
             </View>
-            <CardDark {...cardProps} />
+            <View style={{ marginRight: 16 }}>
+              <CardDark {...cardProps} />
+            </View>
+            <View style={{ marginRight: 16 }}>
+              <CardMinimal {...cardProps} />
+            </View>
+            <CardMinimalColor {...cardProps} />
           </ScrollView>
 
           {/* Dots */}
           <View style={styles.dots}>
-            {[0, 1].map((i) => (
+            {[0, 1, 2, 3].map((i) => (
               <View
                 key={i}
                 style={[

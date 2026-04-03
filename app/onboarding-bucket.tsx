@@ -9,19 +9,19 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
-  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { X, MagnifyingGlass, Check, CaretDown } from 'phosphor-react-native';
+import { X, Check, CaretDown } from 'phosphor-react-native';
 import Animated, { FadeInDown, FadeInUp, FadeOutDown, Easing } from 'react-native-reanimated';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Fonts } from '@/constants/theme';
 import { BucketColors } from '@/constants/bucket-colors';
-import { getBucketIcon, BUCKET_ICON_LIST } from '@/utils/bucket-icons';
-import { EMOJI_LIST, getEmojiName } from '@/utils/emoji-list';
+import { getBucketIcon } from '@/utils/bucket-icons';
+import { getEmojiName } from '@/utils/emoji-list';
+import { IconPickerModal } from '@/components/shared/icon-picker-modal';
 import { getCustomColor, clearCustomColor, onCustomColorChange } from '@/utils/custom-color-store';
 import { formatAmountInput, parseAmountInput } from '@/utils/format';
 import { setPendingBucket } from '@/utils/onboarding-store';
@@ -63,7 +63,7 @@ export default function OnboardingBucketScreen() {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
-  const [iconType, setIconType] = useState<'icon' | 'emoji'>('icon');
+  const [iconType, setIconType] = useState<'icon' | 'emoji' | 'pixel'>('icon');
   const [selectedColor, setSelectedColor] = useState<BucketColorKey | null>(null);
   const [customHex, setCustomHex] = useState<string | null>(null);
   const [iconPickerVisible, setIconPickerVisible] = useState(false);
@@ -230,9 +230,9 @@ export default function OnboardingBucketScreen() {
             });
             router.push('/onboarding-bank');
           }}
-          style={[styles.continueButton, { backgroundColor: isValid ? textColor : surfaceColor }]}
+          style={[styles.continueButton, { backgroundColor: textColor, opacity: isValid ? 1 : 0.25 }]}
         >
-          <Text style={[styles.continueButtonText, { color: isValid ? bgColor : secondaryColor }]}>
+          <Text style={[styles.continueButtonText, { color: bgColor }]}>
             Continue
           </Text>
         </Pressable>
@@ -256,115 +256,6 @@ export default function OnboardingBucketScreen() {
         }}
       />
     </KeyboardAvoidingView>
-  );
-}
-
-function IconPickerModal({ visible, onClose, selectedIcon, selectedType, onSelect }: {
-  visible: boolean; onClose: () => void; selectedIcon: string | null; selectedType: 'icon' | 'emoji'; onSelect: (icon: string, type: 'icon' | 'emoji') => void;
-}) {
-  const bgColor = useThemeColor({}, 'background');
-  const textColor = useThemeColor({}, 'text');
-  const surfaceColor = useThemeColor({}, 'surface');
-  const secondaryColor = useThemeColor({}, 'textSecondary');
-  const [tab, setTab] = useState<'icons' | 'emojis'>(selectedType === 'emoji' ? 'emojis' : 'icons');
-  const [search, setSearch] = useState('');
-
-  const filteredIcons = useMemo(() => {
-    if (!search.trim() || tab !== 'icons') return BUCKET_ICON_LIST;
-    const q = search.toLowerCase();
-    return BUCKET_ICON_LIST.filter((i) => i.name.toLowerCase().includes(q));
-  }, [search, tab]);
-
-  const filteredEmojis = useMemo(() => {
-    if (!search.trim() || tab !== 'emojis') return EMOJI_LIST;
-    const q = search.toLowerCase();
-    return EMOJI_LIST.filter((e) => e.tags.includes(q));
-  }, [search, tab]);
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={[styles.modalRoot, { backgroundColor: bgColor }]}>
-        <View style={[styles.stickyClose, { marginTop: 4 }]}>
-          <Pressable
-            onPress={onClose}
-            style={[styles.closeCircle, { backgroundColor: surfaceColor }]}
-          >
-            <X size={18} color={secondaryColor} weight="bold" />
-          </Pressable>
-        </View>
-
-        <Text style={[styles.modalTitle, { color: textColor }]}>Select icon</Text>
-
-        <View style={styles.tabRow}>
-          <Pressable
-            onPress={() => { setTab('icons'); setSearch(''); }}
-            style={[styles.tab, tab === 'icons' && { backgroundColor: textColor }]}
-          >
-            <Text style={[styles.tabText, { color: tab === 'icons' ? bgColor : secondaryColor }]}>Icons</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => { setTab('emojis'); setSearch(''); }}
-            style={[styles.tab, tab === 'emojis' && { backgroundColor: textColor }]}
-          >
-            <Text style={[styles.tabText, { color: tab === 'emojis' ? bgColor : secondaryColor }]}>Emojis</Text>
-          </Pressable>
-        </View>
-
-        <View style={[styles.searchBar, { backgroundColor: surfaceColor }]}>
-          <MagnifyingGlass size={18} color={secondaryColor} weight="bold" />
-          <TextInput
-            style={[styles.searchInput, { color: textColor }]}
-            placeholder={tab === 'icons' ? 'Search icons...' : 'Search emojis...'}
-            placeholderTextColor={secondaryColor}
-            value={search}
-            onChangeText={setSearch}
-          />
-        </View>
-
-        {tab === 'icons' ? (
-          <FlatList
-            key="icons-6"
-            data={filteredIcons}
-            numColumns={6}
-            keyExtractor={(item) => item.name}
-            contentContainerStyle={styles.iconGrid}
-            columnWrapperStyle={styles.iconRow}
-            renderItem={({ item }) => {
-              const Icon = item.component;
-              const isSelected = selectedType === 'icon' && selectedIcon === item.name;
-              return (
-                <Pressable
-                  onPress={() => onSelect(item.name, 'icon')}
-                  style={[styles.emojiOption, isSelected && { backgroundColor: surfaceColor }]}
-                >
-                  <Icon size={26} color={isSelected ? textColor : secondaryColor} weight="fill" />
-                </Pressable>
-              );
-            }}
-          />
-        ) : (
-          <FlatList
-            key="emojis-6"
-            data={filteredEmojis}
-            numColumns={6}
-            keyExtractor={(item) => item.emoji}
-            contentContainerStyle={styles.iconGrid}
-            columnWrapperStyle={styles.iconRow}
-            renderItem={({ item }) => {
-              const isSelected = selectedType === 'emoji' && selectedIcon === item.emoji;
-              return (
-                <Pressable
-                  onPress={() => onSelect(item.emoji, 'emoji')}
-                  style={[styles.emojiOption, isSelected && { backgroundColor: surfaceColor }]}
-                >
-                  <Text style={styles.emojiText}>{item.emoji}</Text>
-                </Pressable>
-              );
-            }}
-          />
-        )}
-      </View>
-    </Modal>
   );
 }
 
@@ -457,7 +348,7 @@ const styles = StyleSheet.create({
   field: {
     borderRadius: 16,
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 14,
     minHeight: 56,
     justifyContent: 'center',
   },

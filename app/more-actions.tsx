@@ -1,4 +1,4 @@
-import { StyleSheet, View, Alert, Share } from 'react-native';
+import { StyleSheet, View, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { CreditCard, Repeat, PencilSimple, Trash, ShareNetwork } from 'phosphor-react-native';
@@ -6,7 +6,6 @@ import { CreditCard, Repeat, PencilSimple, Trash, ShareNetwork } from 'phosphor-
 import { SheetListItem } from '@/components/shared';
 import { useBuckets } from '@/contexts/buckets-context';
 import { useCelebration } from '@/contexts/celebration-context';
-import { formatCurrency } from '@/utils/format';
 
 export default function MoreActionsSheet() {
   const router = useRouter();
@@ -18,15 +17,8 @@ export default function MoreActionsSheet() {
 
   function handleShare() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const name = bucket?.name ?? 'my goal';
-    const saved = bucket ? formatCurrency(bucket.currentAmount) : '$0';
-    const target = bucket ? formatCurrency(bucket.targetAmount) : '$0';
-
-    const message = isCompleted
-      ? `I just completed my "${name}" savings goal with Zuma! 🎉 Saved ${target} — now treating myself. Start saving smarter: https://zuma.app/download`
-      : `I'm saving for "${name}" with Zuma — already at ${saved} of ${target}! 💰 Try it out: https://zuma.app/download`;
-
-    Share.share({ message });
+    router.back();
+    router.push({ pathname: '/share-preview', params: { bucketId: bucketId! } });
   }
 
   function handleDelete() {

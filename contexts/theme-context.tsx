@@ -2,15 +2,17 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { useColorScheme as useDeviceColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type ThemePreference = 'light' | 'dark' | 'system';
+export type ThemePreference = 'light' | 'dark' | 'system' | 'gold' | 'lavender';
+export type ColorScheme = 'light' | 'dark' | 'gold' | 'lavender';
 
 type ThemeContextType = {
   preference: ThemePreference;
   setPreference: (pref: ThemePreference) => void;
-  colorScheme: 'light' | 'dark';
+  colorScheme: ColorScheme;
 };
 
 const STORAGE_KEY = 'zuma_theme_preference';
+const VALID_PREFS: ThemePreference[] = ['light', 'dark', 'system', 'gold', 'lavender'];
 
 const ThemeContext = createContext<ThemeContextType>({
   preference: 'system',
@@ -25,8 +27,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((value) => {
-      if (value === 'light' || value === 'dark' || value === 'system') {
-        setPreferenceState(value);
+      if (value && VALID_PREFS.includes(value as ThemePreference)) {
+        setPreferenceState(value as ThemePreference);
       }
       setLoaded(true);
     });
@@ -37,8 +39,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEY, pref);
   }, []);
 
-  const colorScheme: 'light' | 'dark' =
-    preference === 'system' ? (deviceScheme ?? 'dark') : preference;
+  let colorScheme: ColorScheme;
+  if (preference === 'system') {
+    colorScheme = (deviceScheme ?? 'dark') as ColorScheme;
+  } else {
+    colorScheme = preference;
+  }
 
   if (!loaded) return null;
 

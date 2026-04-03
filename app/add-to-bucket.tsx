@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import {
   StyleSheet, View, Text, Pressable, TextInput, Modal,
-  InputAccessoryView, Platform,
+  InputAccessoryView, Platform, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -15,6 +15,7 @@ import { getBucketIcon } from '@/utils/bucket-icons';
 import { formatCurrency, formatAmountInput, parseAmountInput } from '@/utils/format';
 import { useBuckets } from '@/contexts/buckets-context';
 import { SheetListItem } from '@/components/shared';
+import { PixelIcon } from '@/components/shared/pixel-icon';
 import type { Bucket } from '@/types';
 
 const INPUT_ACCESSORY_ID = 'add-to-bucket-btn';
@@ -46,8 +47,8 @@ export default function AddToBucketScreen() {
 
   const fromPalette = getBucketPalette(fromBucket.colorKey);
   const targetPalette = getBucketPalette(targetBucket.colorKey);
-  const FromIcon = getBucketIcon(fromBucket.icon);
-  const TargetIcon = getBucketIcon(targetBucket.icon);
+  const FromIcon = fromBucket.iconType === 'icon' ? getBucketIcon(fromBucket.icon) : null;
+  const TargetIcon = targetBucket.iconType === 'icon' ? getBucketIcon(targetBucket.icon) : null;
 
   const amountCents = Math.round(parseFloat(parseAmountInput(amount) || '0') * 100);
   const isValid = amountCents > 0 && amountCents <= fromBucket.currentAmount;
@@ -68,9 +69,9 @@ export default function AddToBucketScreen() {
             setSaving(false);
           }
         }}
-        style={[styles.actionButton, { backgroundColor: isValid && !saving ? textColor : surfaceColor }]}
+        style={[styles.actionButton, { backgroundColor: textColor, opacity: isValid && !saving ? 1 : 0.25 }]}
       >
-        <Text style={[styles.actionButtonText, { color: isValid && !saving ? bgColor : secondaryColor }]}>
+        <Text style={[styles.actionButtonText, { color: bgColor }]}>
           {saving ? 'Adding...' : 'Add funds'}
         </Text>
       </Pressable>
@@ -94,7 +95,13 @@ export default function AddToBucketScreen() {
           style={[styles.bucketPill, { backgroundColor: surfaceColor }]}
         >
           <View style={[styles.pillIcon, { backgroundColor: fromBucket.isMain ? fromPalette.light : fromPalette.main }]}>
-            <FromIcon size={14} color={fromPalette.cardText} weight="fill" />
+            {fromBucket.iconType === 'pixel' ? (
+              <PixelIcon data={JSON.parse(fromBucket.icon)} size={14} color={fromPalette.cardText} />
+            ) : fromBucket.iconType === 'emoji' ? (
+              <Text style={{ fontSize: 14 }}>{fromBucket.icon}</Text>
+            ) : (
+              FromIcon && <FromIcon size={14} color={fromPalette.cardText} weight="fill" />
+            )}
           </View>
           <View style={styles.pillInfo}>
             <Text style={[styles.pillName, { color: textColor }]}>{fromBucket.name}</Text>
@@ -107,7 +114,13 @@ export default function AddToBucketScreen() {
 
         <View style={[styles.bucketPill, { backgroundColor: surfaceColor }]}>
           <View style={[styles.pillIcon, { backgroundColor: targetBucket.isMain ? targetPalette.light : targetPalette.main }]}>
-            <TargetIcon size={14} color={targetPalette.cardText} weight="fill" />
+            {targetBucket.iconType === 'pixel' ? (
+              <PixelIcon data={JSON.parse(targetBucket.icon)} size={14} color={targetPalette.cardText} />
+            ) : targetBucket.iconType === 'emoji' ? (
+              <Text style={{ fontSize: 14 }}>{targetBucket.icon}</Text>
+            ) : (
+              TargetIcon && <TargetIcon size={14} color={targetPalette.cardText} weight="fill" />
+            )}
           </View>
           <View style={styles.pillInfo}>
             <Text style={[styles.pillName, { color: textColor }]}>{targetBucket.name}</Text>
@@ -197,9 +210,9 @@ function FromPickerModal({ visible, onClose, buckets, selectedId, onSelect }: {
           </Pressable>
         </View>
         <Text style={[styles.modalTitle, { color: textColor }]}>Select source</Text>
-        <View style={styles.modalList}>
+        <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent}>
           {buckets.map((bucket) => {
-            const Icon = getBucketIcon(bucket.icon);
+            const Icon = bucket.iconType === 'icon' ? getBucketIcon(bucket.icon) : null;
             const palette = getBucketPalette(bucket.colorKey);
             const isSelected = bucket.id === selectedId;
             return (
@@ -209,7 +222,13 @@ function FromPickerModal({ visible, onClose, buckets, selectedId, onSelect }: {
                 style={({ pressed }) => [styles.sourceItem, pressed && { opacity: 0.7 }]}
               >
                 <View style={[styles.sourceIcon, { backgroundColor: bucket.isMain ? palette.light : palette.main }]}>
-                  <Icon size={18} color={palette.cardText} weight="fill" />
+                  {bucket.iconType === 'pixel' ? (
+                    <PixelIcon data={JSON.parse(bucket.icon)} size={18} color={palette.cardText} />
+                  ) : bucket.iconType === 'emoji' ? (
+                    <Text style={{ fontSize: 18 }}>{bucket.icon}</Text>
+                  ) : (
+                    Icon && <Icon size={18} color={palette.cardText} weight="fill" />
+                  )}
                 </View>
                 <View style={styles.sourceInfo}>
                   <Text style={[styles.sourceName, { color: textColor }]}>{bucket.name}</Text>
@@ -221,7 +240,7 @@ function FromPickerModal({ visible, onClose, buckets, selectedId, onSelect }: {
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -258,7 +277,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    top: 10,
+    top: 16,
     zIndex: 10,
     pointerEvents: 'none',
   },
@@ -339,7 +358,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   modalList: {
+    flex: 1,
     paddingHorizontal: 20,
+  },
+  modalListContent: {
+    paddingBottom: 40,
   },
   sourceItem: {
     flexDirection: 'row',

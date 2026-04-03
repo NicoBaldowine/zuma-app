@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getCurrentUserId } from '@/lib/auth/get-user-id';
 import { fetchBuckets, createBucket as apiBucketCreate, updateBucket as apiBucketUpdate, deleteBucket as apiBucketDelete, ensureMainBucket } from '@/lib/api/buckets';
@@ -21,7 +21,7 @@ type BucketsContextValue = {
   createBucket: (params: {
     name: string;
     icon: string;
-    iconType: 'icon' | 'emoji';
+    iconType: 'icon' | 'emoji' | 'pixel';
     colorKey: BucketColorKey;
     customColor?: string;
     targetAmount: number;
@@ -165,16 +165,14 @@ export function BucketsProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadBuckets]);
 
-  const wallet = computeWallet(buckets, isAuthenticated ? getCurrentUserId() : 'anonymous');
-  const mainBucket = buckets.find((b) => b.isMain);
-  const savingsBuckets = buckets
-    .filter((b) => !b.isMain)
-    .sort((a, b) => a.order - b.order);
+  const wallet = useMemo(() => computeWallet(buckets, isAuthenticated ? getCurrentUserId() : 'anonymous'), [buckets, isAuthenticated]);
+  const mainBucket = useMemo(() => buckets.find((b) => b.isMain), [buckets]);
+  const savingsBuckets = useMemo(() => buckets.filter((b) => !b.isMain).sort((a, b) => a.order - b.order), [buckets]);
 
   const createBucket = useCallback(async (params: {
     name: string;
     icon: string;
-    iconType: 'icon' | 'emoji';
+    iconType: 'icon' | 'emoji' | 'pixel';
     colorKey: BucketColorKey;
     customColor?: string;
     targetAmount: number;

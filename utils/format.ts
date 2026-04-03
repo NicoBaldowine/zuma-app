@@ -1,8 +1,17 @@
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+});
+
+const currencyCache = new Map<number, string>();
+
 export function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(cents / 100);
+  const cached = currencyCache.get(cents);
+  if (cached) return cached;
+  const result = currencyFormatter.format(cents / 100);
+  if (currencyCache.size > 500) currencyCache.clear();
+  currencyCache.set(cents, result);
+  return result;
 }
 
 /** Format amount input with commas while typing (e.g. "10000" → "10,000") */
@@ -32,8 +41,11 @@ export function calcProgress(current: number, target: number): number {
 export function formatDate(iso: string): string {
   const date = new Date(iso);
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  // Compare by local calendar day, not by ms difference
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((startOfToday.getTime() - startOfDate.getTime()) / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';

@@ -3,6 +3,25 @@ import { getCurrentUserId } from '../auth/get-user-id';
 import { mapAutoDepositRow } from './mappers';
 import type { AutoDepositRule, AutoDepositFrequency, AutoDepositEnd } from '@/types';
 
+function computeNextExecution(frequency: AutoDepositFrequency): string {
+  const now = new Date();
+  switch (frequency) {
+    case 'daily':
+      now.setDate(now.getDate() + 1);
+      break;
+    case 'weekly':
+      now.setDate(now.getDate() + 7);
+      break;
+    case 'biweekly':
+      now.setDate(now.getDate() + 14);
+      break;
+    case 'monthly':
+      now.setMonth(now.getMonth() + 1);
+      break;
+  }
+  return now.toISOString();
+}
+
 export async function fetchAutoDeposits(userId: string = getCurrentUserId()): Promise<AutoDepositRule[]> {
   const { data, error } = await supabase
     .from('auto_deposit_rules')
@@ -41,6 +60,7 @@ export async function createAutoDeposit(params: {
       amount: params.amount,
       frequency: params.frequency,
       end_condition: params.endCondition,
+      next_execution_at: computeNextExecution(params.frequency),
     })
     .select()
     .single();
@@ -61,7 +81,10 @@ export async function updateAutoDeposit(
   const update: Record<string, unknown> = {};
   if (params.sourceBucketId !== undefined) update.source_bucket_id = params.sourceBucketId;
   if (params.amount !== undefined) update.amount = params.amount;
-  if (params.frequency !== undefined) update.frequency = params.frequency;
+  if (params.frequency !== undefined) {
+    update.frequency = params.frequency;
+    update.next_execution_at = computeNextExecution(params.frequency);
+  }
   if (params.endCondition !== undefined) update.end_condition = params.endCondition;
 
   const { data, error } = await supabase
@@ -84,10 +107,14 @@ export async function deleteAutoDeposit(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function pauseAutoDeposit(id: string, paused: boolean): Promise<void> {
+export async function pauseAutoDeposit(id: string, paused: boolean, frequency?: AutoDepositFrequency): Promise<void> {
+  const update: Record<string, unknown> = { is_paused: paused };
+  if (!paused && frequency) {
+    update.next_execution_at = computeNextExecution(frequency);
+  }
   const { error } = await supabase
     .from('auto_deposit_rules')
-    .update({ is_paused: paused })
+    .update(update)
     .eq('id', id);
 
   if (error) throw error;

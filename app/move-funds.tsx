@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import {
   StyleSheet, View, Text, Pressable, TextInput, Modal,
-  InputAccessoryView, Platform,
+  InputAccessoryView, Platform, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,7 +14,7 @@ import { getBucketPalette } from '@/constants/bucket-colors';
 import { getBucketIcon } from '@/utils/bucket-icons';
 import { formatCurrency, formatAmountInput, parseAmountInput } from '@/utils/format';
 import { useBuckets } from '@/contexts/buckets-context';
-import { hasLinkedAccount } from '@/lib/api/plaid';
+import { PixelIcon } from '@/components/shared/pixel-icon';
 import type { Bucket } from '@/types';
 
 const INPUT_ACCESSORY_ID = 'move-funds-btn';
@@ -22,12 +22,7 @@ const INPUT_ACCESSORY_ID = 'move-funds-btn';
 export default function MoveFundsScreen() {
   const router = useRouter();
 
-  // Redirect to bank connection if no account linked
-  useState(() => {
-    hasLinkedAccount().then((linked) => {
-      if (!linked) router.replace('/linked-account');
-    }).catch(() => {});
-  });
+  // Note: Plaid gating handled by home screen ActionBar before navigation
   const bgColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const surfaceColor = useThemeColor({}, 'surface');
@@ -50,8 +45,8 @@ export default function MoveFundsScreen() {
 
   const fromPalette = getBucketPalette(fromBucket.colorKey);
   const toPalette = getBucketPalette(toBucket.colorKey);
-  const FromIcon = getBucketIcon(fromBucket.icon);
-  const ToIcon = getBucketIcon(toBucket.icon);
+  const FromIcon = fromBucket.iconType === 'icon' ? getBucketIcon(fromBucket.icon) : null;
+  const ToIcon = toBucket.iconType === 'icon' ? getBucketIcon(toBucket.icon) : null;
 
   const availableBuckets = buckets.filter((b) => {
     if (pickerTarget === 'from') return b.id !== toBucketId && b.currentAmount > 0;
@@ -78,9 +73,9 @@ export default function MoveFundsScreen() {
             setSaving(false);
           }
         }}
-        style={[styles.actionButton, { backgroundColor: isValid && !saving ? textColor : surfaceColor }]}
+        style={[styles.actionButton, { backgroundColor: textColor, opacity: isValid && !saving ? 1 : 0.25 }]}
       >
-        <Text style={[styles.actionButtonText, { color: isValid && !saving ? bgColor : secondaryColor }]}>
+        <Text style={[styles.actionButtonText, { color: bgColor }]}>
           {saving ? 'Moving...' : 'Move funds'}
         </Text>
       </Pressable>
@@ -109,7 +104,13 @@ export default function MoveFundsScreen() {
           style={[styles.bucketPill, { backgroundColor: surfaceColor }]}
         >
           <View style={[styles.pillIcon, { backgroundColor: fromBucket.isMain ? fromPalette.light : fromPalette.main }]}>
-            <FromIcon size={14} color={fromPalette.cardText} weight="fill" />
+            {fromBucket.iconType === 'pixel' ? (
+              <PixelIcon data={JSON.parse(fromBucket.icon)} size={14} color={fromPalette.cardText} />
+            ) : fromBucket.iconType === 'emoji' ? (
+              <Text style={{ fontSize: 14 }}>{fromBucket.icon}</Text>
+            ) : (
+              FromIcon && <FromIcon size={14} color={fromPalette.cardText} weight="fill" />
+            )}
           </View>
           <View style={styles.pillInfo}>
             <Text style={[styles.pillName, { color: textColor }]}>{fromBucket.name}</Text>
@@ -123,7 +124,13 @@ export default function MoveFundsScreen() {
           style={[styles.bucketPill, { backgroundColor: surfaceColor }]}
         >
           <View style={[styles.pillIcon, { backgroundColor: toBucket.isMain ? toPalette.light : toPalette.main }]}>
-            <ToIcon size={14} color={toPalette.cardText} weight="fill" />
+            {toBucket.iconType === 'pixel' ? (
+              <PixelIcon data={JSON.parse(toBucket.icon)} size={14} color={toPalette.cardText} />
+            ) : toBucket.iconType === 'emoji' ? (
+              <Text style={{ fontSize: 14 }}>{toBucket.icon}</Text>
+            ) : (
+              ToIcon && <ToIcon size={14} color={toPalette.cardText} weight="fill" />
+            )}
           </View>
           <View style={styles.pillInfo}>
             <Text style={[styles.pillName, { color: textColor }]}>{toBucket.name}</Text>
@@ -213,9 +220,9 @@ function BucketPickerModal({ visible, onClose, title, buckets, selectedId, onSel
           </Pressable>
         </View>
         <Text style={[styles.modalTitle, { color: textColor }]}>{title}</Text>
-        <View style={styles.modalList}>
+        <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent}>
           {buckets.map((bucket) => {
-            const Icon = getBucketIcon(bucket.icon);
+            const Icon = bucket.iconType === 'icon' ? getBucketIcon(bucket.icon) : null;
             const palette = getBucketPalette(bucket.colorKey);
             const isSelected = bucket.id === selectedId;
             return (
@@ -225,7 +232,13 @@ function BucketPickerModal({ visible, onClose, title, buckets, selectedId, onSel
                 style={({ pressed }) => [styles.sourceItem, pressed && { opacity: 0.7 }]}
               >
                 <View style={[styles.sourceIcon, { backgroundColor: bucket.isMain ? palette.light : palette.main }]}>
-                  <Icon size={18} color={palette.cardText} weight="fill" />
+                  {bucket.iconType === 'pixel' ? (
+                    <PixelIcon data={JSON.parse(bucket.icon)} size={18} color={palette.cardText} />
+                  ) : bucket.iconType === 'emoji' ? (
+                    <Text style={{ fontSize: 18 }}>{bucket.icon}</Text>
+                  ) : (
+                    Icon && <Icon size={18} color={palette.cardText} weight="fill" />
+                  )}
                 </View>
                 <View style={styles.sourceInfo}>
                   <Text style={[styles.sourceName, { color: textColor }]}>{bucket.name}</Text>
@@ -237,7 +250,7 @@ function BucketPickerModal({ visible, onClose, title, buckets, selectedId, onSel
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -282,7 +295,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    top: 10,
+    top: 16,
     zIndex: 10,
     pointerEvents: 'none',
   },
@@ -355,7 +368,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   modalList: {
+    flex: 1,
     paddingHorizontal: 20,
+  },
+  modalListContent: {
+    paddingBottom: 40,
   },
   sourceItem: {
     flexDirection: 'row',

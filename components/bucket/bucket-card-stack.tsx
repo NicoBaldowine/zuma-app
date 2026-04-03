@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import { useMemo } from 'react';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import type { Bucket } from '@/types';
 import { BucketCard } from './bucket-card';
@@ -22,7 +23,7 @@ export function BucketCardStack({ buckets, cardBucketIds, loading, onCardPress }
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <Animated.View exiting={FadeOut.duration(300)} style={styles.container}>
         {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
           <View
             key={i}
@@ -31,15 +32,15 @@ export function BucketCardStack({ buckets, cardBucketIds, loading, onCardPress }
               { marginTop: i === 0 ? 0 : CARD_OVERLAP },
             ]}
           >
-            <Skeleton width="100%" height={130} borderRadius={30} />
+            <Skeleton width="100%" height={i === SKELETON_COUNT - 1 ? 88 : 130} borderRadius={30} />
           </View>
         ))}
-      </View>
+      </Animated.View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <Animated.View entering={FadeIn.duration(400)} style={styles.container}>
       {sorted.map((bucket, index) => (
         <View
           key={bucket.id}
@@ -57,7 +58,7 @@ export function BucketCardStack({ buckets, cardBucketIds, loading, onCardPress }
           />
         </View>
       ))}
-    </View>
+    </Animated.View>
   );
 }
 

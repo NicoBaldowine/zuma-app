@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
-  StyleSheet, View, Text, Pressable, TextInput, Modal, ScrollView, Keyboard, Alert,
+  StyleSheet, View, Text, Pressable, Modal, ScrollView, Keyboard, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
-  X, CaretRight, CaretDown, Check, ArrowDown,
+  X, CaretRight, Check, ArrowDown,
   Clock, CalendarBlank, Target, Repeat, Trash, Pause, Play,
 } from 'phosphor-react-native';
 
@@ -17,7 +17,7 @@ import { getBucketIcon } from '@/utils/bucket-icons';
 import { formatCurrency, formatAmountInput, parseAmountInput } from '@/utils/format';
 import { useBuckets } from '@/contexts/buckets-context';
 import { useAutoDeposits } from '@/contexts/auto-deposits-context';
-import { SheetListItem } from '@/components/shared';
+import { SheetListItem, FormField, FormSelect } from '@/components/shared';
 import type { Bucket, AutoDepositFrequency, AutoDepositEnd } from '@/types';
 
 const FREQUENCY_OPTIONS: { key: AutoDepositFrequency; label: string }[] = [
@@ -154,46 +154,28 @@ export default function EditAutoDepositScreen() {
           </View>
         </View>
 
-        <View style={[styles.field, { backgroundColor: surfaceColor }]}>
-          {amount.length > 0 && (
-            <Text style={[styles.fieldLabel, { color: secondaryColor }]}>Amount</Text>
-          )}
-          <TextInput
-            style={[styles.fieldInput, { color: textColor }]}
-            placeholder="Amount"
-            placeholderTextColor={secondaryColor}
-            value={amount}
-            onChangeText={(v) => setAmount(formatAmountInput(v))}
-            keyboardType="decimal-pad"
-          />
-        </View>
+        <FormField
+          label="Amount"
+          value={amount}
+          onChangeText={(v) => setAmount(formatAmountInput(v))}
+          keyboardType="decimal-pad"
+          style={{ marginBottom: 8 }}
+        />
 
         <View style={styles.pickersRow}>
-          <Pressable
+          <FormSelect
+            label="Frequency"
+            value={FREQUENCY_OPTIONS.find((o) => o.key === frequency)?.label}
             onPress={() => setFrequencyPickerVisible(true)}
-            style={[styles.field, styles.pickerButton, { backgroundColor: surfaceColor }]}
-          >
-            <Text style={[styles.fieldLabel, { color: secondaryColor }]}>Frequency</Text>
-            <View style={styles.pickerInner}>
-              <Text style={[styles.fieldValue, { color: textColor }]}>
-                {FREQUENCY_OPTIONS.find((o) => o.key === frequency)?.label}
-              </Text>
-              <CaretDown size={14} color={secondaryColor} weight="bold" />
-            </View>
-          </Pressable>
+            style={{ flex: 1 }}
+          />
 
-          <Pressable
+          <FormSelect
+            label="Ends"
+            value={END_OPTIONS.find((o) => o.key === endCondition)?.short}
             onPress={() => setEndPickerVisible(true)}
-            style={[styles.field, styles.pickerButton, { backgroundColor: surfaceColor }]}
-          >
-            <Text style={[styles.fieldLabel, { color: secondaryColor }]}>Ends</Text>
-            <View style={styles.pickerInner}>
-              <Text style={[styles.fieldValue, { color: textColor }]}>
-                {END_OPTIONS.find((o) => o.key === endCondition)?.short}
-              </Text>
-              <CaretDown size={14} color={secondaryColor} weight="bold" />
-            </View>
-          </Pressable>
+            style={{ flex: 1 }}
+          />
         </View>
 
         <View style={{ height: 120 }} />
@@ -243,9 +225,9 @@ export default function EditAutoDepositScreen() {
               setSaving(false);
             }
           }}
-          style={[styles.saveButton, { backgroundColor: isValid && !saving ? textColor : surfaceColor }]}
+          style={[styles.saveButton, { backgroundColor: textColor, opacity: isValid && !saving ? 1 : 0.25 }]}
         >
-          <Text style={[styles.saveButtonText, { color: isValid && !saving ? bgColor : secondaryColor }]}>
+          <Text style={[styles.saveButtonText, { color: bgColor }]}>
             {saving ? 'Saving...' : isPaused ? 'Resume' : 'Save changes'}
           </Text>
         </Pressable>
@@ -369,13 +351,7 @@ const styles = StyleSheet.create({
   pillSub: { fontSize: 13, fontFamily: Fonts.regular },
   arrowOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', top: -4, zIndex: 10, pointerEvents: 'none' },
   arrowCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 3 },
-  field: { borderRadius: 16, paddingHorizontal: 20, paddingVertical: 10, minHeight: 56, justifyContent: 'center', marginBottom: 8 },
-  fieldLabel: { fontSize: 12, fontFamily: Fonts.regular, marginBottom: 2 },
-  fieldInput: { fontSize: 16, fontFamily: Fonts.medium, letterSpacing: 0, padding: 0 },
-  fieldValue: { fontSize: 16, fontFamily: Fonts.medium },
   pickersRow: { flexDirection: 'row', gap: 12 },
-  pickerButton: { flex: 1 },
-  pickerInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   bottomButtons: {
     position: 'absolute',
     bottom: 0,

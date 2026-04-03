@@ -9,7 +9,7 @@ import Animated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback, useEffect } from 'react';
 import * as Haptics from 'expo-haptics';
 
@@ -21,7 +21,7 @@ import { BucketCardStack } from '@/components/bucket';
 import { formatCurrency } from '@/utils/format';
 import { useBuckets } from '@/contexts/buckets-context';
 import { fetchActiveCardBucketIds } from '@/lib/api/virtual-cards';
-import { hasLinkedAccount } from '@/lib/api/plaid';
+import { hasLinkedAccount, getLinkedAccountMask } from '@/lib/api/plaid';
 import type { Bucket } from '@/types';
 
 const SCROLL_THRESHOLD = 80;
@@ -37,10 +37,20 @@ export default function HomeScreen() {
 
   const [cardBucketIds, setCardBucketIds] = useState<Set<string>>(new Set());
   const [bankLinked, setBankLinked] = useState(false);
+  const [accountMask, setAccountMask] = useState<string | undefined>();
   const scrollY = useSharedValue(0);
 
+  useFocusEffect(
+    useCallback(() => {
+      hasLinkedAccount().then((linked) => {
+        setBankLinked(linked);
+        if (linked) getLinkedAccountMask().then(setAccountMask).catch(() => {});
+        else setAccountMask(undefined);
+      }).catch(() => {});
+    }, [])
+  );
+
   useEffect(() => {
-    hasLinkedAccount().then(setBankLinked).catch(() => {});
     fetchActiveCardBucketIds().then(setCardBucketIds).catch(() => {});
   }, []);
 
@@ -76,14 +86,14 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={colorScheme === 'dark' || colorScheme === 'gold' ? 'light' : 'dark'} />
 
       {/* Sticky compact balance badge — shows when scrolled */}
       {!loading && (
         <Animated.View style={[styles.stickyBadge, badgeStyle]} pointerEvents="none">
           <BlurView
             intensity={80}
-            tint={colorScheme === 'dark' ? 'dark' : 'light'}
+            tint={colorScheme === 'dark' || colorScheme === 'gold' ? 'dark' : 'light'}
             style={styles.badgeBlur}
           >
             <Text style={[styles.badgeText, { color: textColor }]}>
@@ -101,15 +111,16 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
       >
         <BalanceDisplay
-          label="Total Savings"
+          label="Total Balance"
           amountCents={wallet.totalBalance}
           loading={loading}
           linked={bankLinked}
+          accountMask={accountMask}
           onLinkPress={() => router.push('/linked-account')}
           onRefreshPress={() => router.push('/refresh-balance' as any)}
         />
         <ActionBar
-          onNewBucket={() => router.push('/create-bucket')}
+          onNewBucket={() => router.push('/new-bucket')}
           onMoveFunds={() => router.push(bankLinked ? '/move-funds' : '/linked-account')}
           onAutoDeposit={() => router.push(bankLinked ? '/auto-deposit' : '/linked-account')}
           onAccount={() => router.push('/account')}

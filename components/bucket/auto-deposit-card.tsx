@@ -13,13 +13,19 @@ const FREQUENCY_LABELS: Record<AutoDepositFrequency, string> = {
   monthly: 'Monthly',
 };
 
-const END_LABELS: Record<AutoDepositEnd, string> = {
-  bucket_full: 'until bucket is full',
-  '3_months': 'for 3 months',
-  '6_months': 'for 6 months',
-  '1_year': 'for 1 year',
-  never: 'forever',
-};
+function formatTimeUntil(isoDate: string): string {
+  const diff = new Date(isoDate).getTime() - Date.now();
+  if (diff <= 0) return 'soon';
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) {
+    const remainMins = mins % 60;
+    return remainMins > 0 ? `${hrs}h ${remainMins}m` : `${hrs}h`;
+  }
+  const days = Math.floor(hrs / 24);
+  return days === 1 ? '1 day' : `${days} days`;
+}
 
 type AutoDepositCardProps = {
   frequency: AutoDepositFrequency;
@@ -27,6 +33,7 @@ type AutoDepositCardProps = {
   amount: string;
   colorKey: BucketColorKey;
   paused?: boolean;
+  nextExecutionAt?: string | null;
   onEdit: () => void;
 };
 
@@ -36,6 +43,7 @@ export function AutoDepositCard({
   amount,
   colorKey,
   paused = false,
+  nextExecutionAt,
   onEdit,
 }: AutoDepositCardProps) {
   const palette = getBucketPalette(colorKey);
@@ -55,7 +63,7 @@ export function AutoDepositCard({
             {paused ? 'Auto-deposit paused' : 'Auto-deposit enabled'}
           </Text>
           <Text style={[styles.subtitle, { color: paused ? 'rgba(255,255,255,0.6)' : palette.cardText, opacity: paused ? 1 : 0.6 }]}>
-            ${amount} {FREQUENCY_LABELS[frequency].toLowerCase()} {END_LABELS[endCondition]}
+            ${amount} {FREQUENCY_LABELS[frequency].toLowerCase()}{nextExecutionAt ? ` · Next in ${formatTimeUntil(nextExecutionAt)}` : ''}
           </Text>
         </View>
       </View>

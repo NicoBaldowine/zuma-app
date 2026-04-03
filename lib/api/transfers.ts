@@ -35,6 +35,32 @@ export async function addFunds(params: {
   if (error) throw error;
 }
 
+export async function seedMainBucketBalance(amountCents: number): Promise<void> {
+  const userId = getCurrentUserId();
+  const { data: main } = await supabase
+    .from('buckets')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('is_main', true)
+    .single();
+
+  if (!main) return;
+
+  await addFunds({
+    userId,
+    bucketId: main.id,
+    amount: amountCents,
+    description: 'Bank account linked',
+  });
+}
+
+export async function resetAllBucketBalances(): Promise<void> {
+  const userId = getCurrentUserId();
+  await (supabase.from as any)('buckets')
+    .update({ current_amount: 0 })
+    .eq('user_id', userId);
+}
+
 export async function reconcileBuckets(
   adjustments: Array<{ bucketId: string; amount: number }>,
   userId: string = getCurrentUserId(),

@@ -1,7 +1,8 @@
 import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback, useEffect } from 'react';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
@@ -45,9 +46,11 @@ export default function BucketDetailScreen() {
     if (id) loadCard(id);
   }, [id, buckets, loadCard]);
 
-  useEffect(() => {
-    hasLinkedAccount().then(setBankLinked).catch(() => {});
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      hasLinkedAccount().then(setBankLinked).catch(() => {});
+    }, [])
+  );
 
   if (!bucket || !palette) {
     return (
@@ -59,23 +62,31 @@ export default function BucketDetailScreen() {
 
   const rule = getRuleForBucket(bucket.id);
   const isCompleted = bucket.targetAmount > 0 && bucket.currentAmount >= bucket.targetAmount;
-  const isLight = colorScheme === 'light' && bucket.colorKey === 'neutral';
-  const detailTextColor = isLight ? '#1A1A1A' : '#FFFFFF';
-  const detailLabelColor = isLight ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.6)';
-  const detailCardBg = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.12)';
+  const isLightBg = (colorScheme === 'light' || colorScheme === 'lavender') && bucket.colorKey === 'neutral';
+  const detailTextColor = isLightBg ? '#1A1A1A' : '#FFFFFF';
+  const detailLabelColor = isLightBg ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.6)';
+  const detailCardBg = isLightBg ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.22)';
 
   return (
     <View style={[styles.root, { backgroundColor: palette.dark }]}>
-      <StatusBar style={isLight ? 'dark' : 'light'} />
+      <StatusBar style={isLightBg ? 'dark' : 'light'} />
 
       {/* Close button */}
-      <View style={[styles.stickyClose, { marginTop: 4 }]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={[styles.closeCircle, { backgroundColor: detailCardBg }]}
-        >
-          <X size={18} color={palette.darkText} weight="bold" />
-        </Pressable>
+      <View style={styles.floatingClose}>
+        <View style={[styles.closeCircle, { backgroundColor: detailCardBg }]}>
+          <BlurView
+            intensity={60}
+            tint={isLightBg ? 'light' : 'dark'}
+            experimentalBlurMethod="dimezisBlurView"
+            style={styles.closeBlur}
+          />
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.closeInner}
+          >
+            <X size={18} color={palette.darkText} weight="bold" />
+          </Pressable>
+        </View>
       </View>
 
       <Animated.ScrollView
@@ -138,6 +149,7 @@ export default function BucketDetailScreen() {
                   amount={String(rule.amount / 100)}
                   colorKey={bucket.colorKey}
                   paused={rule.isPaused}
+                  nextExecutionAt={rule.nextExecutionAt}
                   onEdit={() => router.push({ pathname: '/edit-auto-deposit', params: { ruleId: rule.id } })}
                 />
               </Animated.View>
@@ -158,19 +170,10 @@ export default function BucketDetailScreen() {
         </Animated.View>
       </Animated.ScrollView>
 
-      {/* Bottom actions */}
-      {!activeCard && (
+      {/* Bottom actions — not shown for main bucket */}
+      {!activeCard && !bucket.isMain && (
         <View style={[styles.floatingBottom, { paddingBottom: insets.bottom + 8 }]}>
-          {bucket.isMain ? (
-            <View style={styles.singleButtonRow}>
-              <Pressable
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(bankLinked ? '/move-funds' : '/linked-account'); }}
-                style={[styles.fullButton, { backgroundColor: palette.main }]}
-              >
-                <Text style={[styles.fullButtonText, { color: palette.cardText }]}>Move funds</Text>
-              </Pressable>
-            </View>
-          ) : isCompleted ? (
+          {isCompleted ? (
             <BottomActions
               onMore={() => router.push({ pathname: '/more-actions', params: { bucketId: bucket.id, completed: '1' } })}
               onPrimary={() => router.push({ pathname: '/virtual-card', params: { bucketId: bucket.id } })}
@@ -196,26 +199,32 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  stickyClose: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 4,
+  floatingClose: {
+    position: 'absolute',
+    top: 8,
+    right: 20,
     zIndex: 100,
   },
   closeCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    overflow: 'hidden',
+  },
+  closeBlur: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  closeInner: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'flex-end',
   },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 56,
   },
   detailBlock: {
     marginHorizontal: -12,

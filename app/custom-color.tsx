@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { X } from 'phosphor-react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ColorPicker, { Panel1, HueSlider, Preview } from 'reanimated-color-picker';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -32,7 +31,7 @@ export default function CustomColorScreen() {
   }, [router]);
 
   return (
-    <GestureHandlerRootView style={[styles.root, { backgroundColor: bgColor }]}>
+    <View style={[styles.root, { backgroundColor: bgColor }]}>
       <View style={[styles.stickyClose, { marginTop: 4 }]}>
         <Pressable
           onPress={() => router.back()}
@@ -48,7 +47,7 @@ export default function CustomColorScreen() {
         <ColorPicker
           style={styles.picker}
           value="#FF6B6B"
-          onChange={onColorChange}
+          onCompleteJS={onColorChange}
         >
           <Preview style={styles.preview} hideInitialColor />
           <Panel1 style={styles.panel} />
@@ -66,7 +65,7 @@ export default function CustomColorScreen() {
           </Text>
         </Pressable>
       </View>
-    </GestureHandlerRootView>
+    </View>
   );
 }
 
