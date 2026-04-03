@@ -1,13 +1,55 @@
 import { useState, useCallback } from 'react';
-import { create, open, LinkSuccess, LinkExit } from 'react-native-plaid-link-sdk';
+import Constants from 'expo-constants';
+import { supabase } from '@/lib/supabase';
+import { seedMainBucketBalance } from '@/lib/api/transfers';
 import { createLinkToken, exchangePublicToken } from '@/lib/api/plaid';
+
+const isExpoGo = Constants.appOwnership === 'expo';
+
+let plaidSdk: typeof import('react-native-plaid-link-sdk') | null = null;
+if (!isExpoGo) {
+  try {
+    plaidSdk = require('react-native-plaid-link-sdk');
+  } catch {
+    // Native module not available
+  }
+}
 
 type PlaidLinkResult = {
   success: boolean;
   institutionName?: string;
   accountMask?: string;
+  balanceCents?: number;
   error?: string;
 };
+
+async function sandboxLink(): Promise<PlaidLinkResult> {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  const response = await supabase.functions.invoke('sandbox-link', {
+    headers: { Authorization: `Bearer ${session?.access_token}` },
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message);
+  }
+
+  const data = response.data;
+
+  if (!data.success) {
+    throw new Error(data.error ?? 'Sandbox link failed');
+  }
+
+  // Seed main bucket with the real Plaid sandbox balance
+  await seedMainBucketBalance(data.balance_cents);
+
+  return {
+    success: true,
+    institutionName: data.institution_name,
+    accountMask: data.account_mask,
+    balanceCents: data.balance_cents,
+  };
+}
 
 export function usePlaidLink() {
   const [loading, setLoading] = useState(false);
@@ -15,61 +57,68 @@ export function usePlaidLink() {
   const openLink = useCallback(async (): Promise<PlaidLinkResult> => {
     setLoading(true);
     try {
-      // Step 1: Get a link_token from our backend
+      if (!plaidSdk) {
+        const result = await sandboxLink();
+        setLoading(false);
+        return result;
+      }
+
+      // Real Plaid Link flow
       const linkToken = await createLinkToken();
 
-      // Step 2: Create the Link configuration
-      const linkOpenConfig = {
-        onSuccess: (_success: LinkSuccess) => {},
-        onExit: (_exit: LinkExit) => {},
-      };
+      const result = await Promise.race<PlaidLinkResult>([
+        new Promise<PlaidLinkResult>((resolve) => {
+          const onSuccess = async (success: any) => {
+            try {
+              const exchangeResult = await exchangePublicToken(
+                success.publicToken,
+                {
+                  accounts: success.metadata.accounts.map((a: any) => ({
+                    id: a.id,
+                    name: a.name ?? '',
+                    mask: a.mask ?? '',
+                    subtype: String(a.subtype ?? ''),
+                  })),
+                  institution: success.metadata.institution
+                    ? {
+                        name: success.metadata.institution.name,
+                        institution_id: success.metadata.institution.id,
+                      }
+                    : undefined,
+                },
+              );
+              resolve({
+                success: true,
+                institutionName: exchangeResult.institutionName,
+                accountMask: exchangeResult.accountMask,
+              });
+            } catch (err: any) {
+              resolve({ success: false, error: err.message ?? 'Failed to link account' });
+            }
+          };
 
-      // Step 3: Create and open Plaid Link
-      return new Promise<PlaidLinkResult>((resolve) => {
-        linkOpenConfig.onSuccess = async (success: LinkSuccess) => {
-          try {
-            const result = await exchangePublicToken(
-              success.publicToken,
-              {
-                accounts: success.metadata.accounts.map((a) => ({
-                  id: a.id,
-                  name: a.name ?? '',
-                  mask: a.mask ?? '',
-                  subtype: String(a.subtype ?? ''),
-                })),
-                institution: success.metadata.institution
-                  ? {
-                      name: success.metadata.institution.name,
-                      institution_id: success.metadata.institution.id,
-                    }
-                  : undefined,
-              },
-            );
-
-            setLoading(false);
+          const onExit = (exit: any) => {
             resolve({
-              success: true,
-              institutionName: result.institutionName,
-              accountMask: result.accountMask,
+              success: false,
+              error: exit.error?.displayMessage ?? 'Link cancelled',
             });
+          };
+
+          try {
+            plaidSdk!.create({ token: linkToken });
+            plaidSdk!.open({ onSuccess, onExit });
           } catch (err: any) {
-            setLoading(false);
-            resolve({ success: false, error: err.message ?? 'Failed to link account' });
+            resolve({ success: false, error: err.message ?? 'Failed to open Plaid Link' });
           }
-        };
+        }),
+        // Safety timeout
+        new Promise<PlaidLinkResult>((resolve) =>
+          setTimeout(() => resolve({ success: false, error: 'Plaid Link timed out' }), 15000),
+        ),
+      ]);
 
-        linkOpenConfig.onExit = (exit: LinkExit) => {
-          setLoading(false);
-          if (exit.error) {
-            resolve({ success: false, error: exit.error.displayMessage ?? 'Link cancelled' });
-          } else {
-            resolve({ success: false, error: 'Link cancelled' });
-          }
-        };
-
-        create({ token: linkToken });
-        open(linkOpenConfig);
-      });
+      setLoading(false);
+      return result;
     } catch (err: any) {
       setLoading(false);
       return { success: false, error: err.message ?? 'Failed to initialize Plaid Link' };

@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nicobaldovino.zumaapp"
+      "bundleIdentifier": "com.nicobaldovino.zumaapp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -44,9 +47,21 @@
       ],
       "expo-video"
     ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/23b25dd5-88c9-49ad-a16e-012dbba0fdcb"
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "23b25dd5-88c9-49ad-a16e-012dbba0fdcb"
+      }
     }
   }
 }
