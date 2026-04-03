@@ -22,6 +22,7 @@ import { formatCurrency } from '@/utils/format';
 import { useBuckets } from '@/contexts/buckets-context';
 import { fetchActiveCardBucketIds } from '@/lib/api/virtual-cards';
 import { hasLinkedAccount, getLinkedAccountMask } from '@/lib/api/plaid';
+import { CelebrationOverlay } from '@/contexts/celebration-context';
 import type { Bucket } from '@/types';
 
 const SCROLL_THRESHOLD = 80;
@@ -86,6 +87,7 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: bgColor, paddingTop: insets.top }]}>
+      <CelebrationOverlay />
       <StatusBar style={colorScheme === 'dark' || colorScheme === 'gold' ? 'light' : 'dark'} />
 
       {/* Sticky compact balance badge — shows when scrolled */}
@@ -117,7 +119,7 @@ export default function HomeScreen() {
           linked={bankLinked}
           accountMask={accountMask}
           onLinkPress={() => router.push('/linked-account')}
-          onRefreshPress={() => router.push('/refresh-balance' as any)}
+          onRefreshPress={() => router.push('/refresh-balance')}
         />
         <ActionBar
           onNewBucket={() => router.push('/new-bucket')}

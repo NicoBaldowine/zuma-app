@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { X, Wallet, Scales, SlidersHorizontal } from 'phosphor-react-native';
+import { X, Wallet, Scales, SlidersHorizontal, CheckCircle, LinkBreak, Warning } from 'phosphor-react-native';
 import Animated, { FadeInDown, Easing, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -18,11 +18,9 @@ import { formatCurrency } from '@/utils/format';
 import { useBuckets } from '@/contexts/buckets-context';
 import { useCelebration } from '@/contexts/celebration-context';
 import { reconcileBuckets } from '@/lib/api/transfers';
+import { getBalance, hasLinkedAccount } from '@/lib/api/plaid';
 
-// SIMULATION: Replace with actual Plaid getBalance() when ready
-const SIMULATED_DECREASE_CENTS = 8500; // $85
-
-type Step = 'checking' | 'choose' | 'custom';
+type Step = 'checking' | 'choose' | 'custom' | 'no-bank' | 'up-to-date' | 'error';
 
 export default function RefreshBalanceScreen() {
   const router = useRouter();
@@ -56,19 +54,39 @@ export default function RefreshBalanceScreen() {
     width: `${Math.min(progressWidth.value * 100, 100)}%`,
   }));
 
-  // Simulate checking bank balance
+  // Fetch real bank balance from Plaid and compare with bucket totals
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const simulatedDiff = SIMULATED_DECREASE_CENTS;
-      if (simulatedDiff <= 0) {
-        showToast('Account is up to date');
-        router.back();
-        return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const linked = await hasLinkedAccount();
+        if (cancelled) return;
+
+        if (!linked) {
+          setStep('no-bank');
+          return;
+        }
+
+        const accounts = await getBalance();
+        if (cancelled) return;
+
+        const bankBalanceCents = Math.round((accounts[0]?.current ?? 0) * 100);
+        const bucketTotal = buckets.reduce((sum, b) => sum + b.currentAmount, 0);
+        const diff = bucketTotal - bankBalanceCents;
+
+        if (diff <= 0) {
+          setStep('up-to-date');
+          return;
+        }
+        setDeficit(diff);
+        setStep('choose');
+      } catch {
+        if (!cancelled) {
+          setStep('error');
+        }
       }
-      setDeficit(simulatedDiff);
-      setStep('choose');
-    }, 1500);
-    return () => clearTimeout(timer);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Option 1: Deduct all from Main Bucket
@@ -164,6 +182,38 @@ export default function RefreshBalanceScreen() {
           <Text style={[styles.loadingText, { color: secondaryColor }]}>
             Checking your account...
           </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // ─── Status screens ───
+  if (step === 'no-bank' || step === 'up-to-date' || step === 'error') {
+    const config = {
+      'no-bank': { icon: LinkBreak, title: 'No bank linked', desc: 'Link a bank account first to refresh your balance.', cta: 'Link account', onCta: () => { router.back(); setTimeout(() => router.push('/linked-account'), 100); } },
+      'up-to-date': { icon: CheckCircle, title: 'All good!', desc: 'Your bucket balances match your bank account.', cta: 'Done', onCta: () => router.back() },
+      'error': { icon: Warning, title: 'Something went wrong', desc: 'Could not reach your bank. Try again later.', cta: 'Go back', onCta: () => router.back() },
+    }[step];
+    const Icon = config.icon;
+
+    return (
+      <View style={[styles.root, { backgroundColor: bgColor }]}>
+        <View style={[styles.stickyClose, { marginTop: 4 }]}>
+          <Pressable onPress={() => router.back()} style={[styles.closeCircle, { backgroundColor: surfaceColor }]}>
+            <X size={18} color={secondaryColor} weight="bold" />
+          </Pressable>
+        </View>
+        <View style={styles.statusContainer}>
+          <Animated.View entering={FadeInDown.duration(400).easing(Easing.out(Easing.cubic))} style={styles.statusContent}>
+            <View style={[styles.statusIcon, { backgroundColor: surfaceColor }]}>
+              <Icon size={32} color={textColor} weight="fill" />
+            </View>
+            <Text style={[styles.statusTitle, { color: textColor }]}>{config.title}</Text>
+            <Text style={[styles.statusDesc, { color: secondaryColor }]}>{config.desc}</Text>
+            <Pressable onPress={config.onCta} style={[styles.statusButton, { backgroundColor: textColor }]}>
+              <Text style={[styles.statusButtonText, { color: bgColor }]}>{config.cta}</Text>
+            </Pressable>
+          </Animated.View>
         </View>
       </View>
     );
@@ -420,4 +470,13 @@ const styles = StyleSheet.create({
   bottomButton: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12 },
   applyButton: { height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   applyText: { fontSize: 16, fontFamily: Fonts.bold },
+
+  // Status screens
+  statusContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
+  statusContent: { alignItems: 'center', gap: 12 },
+  statusIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  statusTitle: { fontSize: 24, fontFamily: Fonts.medium, letterSpacing: 24 * -0.05 },
+  statusDesc: { fontSize: 16, fontFamily: Fonts.regular, textAlign: 'center', lineHeight: 24 },
+  statusButton: { height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, marginTop: 12 },
+  statusButtonText: { fontSize: 16, fontFamily: Fonts.bold },
 });
