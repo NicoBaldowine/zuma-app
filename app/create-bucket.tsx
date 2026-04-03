@@ -3,26 +3,26 @@ import {
   StyleSheet,
   View,
   Text,
-  TextInput,
   Pressable,
   ScrollView,
   Modal,
-  KeyboardAvoidingView,
-  Platform,
-  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { X, MagnifyingGlass, Check, CaretDown } from 'phosphor-react-native';
+import { X, Check } from 'phosphor-react-native';
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Fonts } from '@/constants/theme';
 import { BucketColors } from '@/constants/bucket-colors';
-import { getBucketIcon, BUCKET_ICON_LIST } from '@/utils/bucket-icons';
-import { EMOJI_LIST, getEmojiName } from '@/utils/emoji-list';
+import { getBucketIcon } from '@/utils/bucket-icons';
+import { getEmojiName } from '@/utils/emoji-list';
+import { IconPickerModal } from '@/components/shared/icon-picker-modal';
+import { FormField, FormSelect } from '@/components/shared';
 import { getCustomColor, clearCustomColor, onCustomColorChange } from '@/utils/custom-color-store';
+import { getPixelIcon, clearPixelIcon, onPixelIconChange } from '@/utils/pixel-icon-store';
+import { PixelIcon } from '@/components/shared/pixel-icon';
 import { formatAmountInput, parseAmountInput } from '@/utils/format';
 import { useBuckets } from '@/contexts/buckets-context';
 import type { BucketColorKey } from '@/types';
@@ -39,6 +39,7 @@ const COLOR_KEYS: BucketColorKey[] = [
   'lemon', 'lime', 'sage', 'mint', 'teal',
   'sky', 'ocean', 'indigo', 'lavender', 'lilac',
   'berry', 'rose', 'blush', 'mauve', 'slate',
+  'clay', 'denim', 'olive', 'wine', 'sand',
 ];
 
 export default function CreateBucketScreen() {
@@ -52,7 +53,7 @@ export default function CreateBucketScreen() {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
-  const [iconType, setIconType] = useState<'icon' | 'emoji'>('icon');
+  const [iconType, setIconType] = useState<'icon' | 'emoji' | 'pixel'>('icon');
   const [selectedColor, setSelectedColor] = useState<BucketColorKey | null>(null);
   const [customHex, setCustomHex] = useState<string | null>(null);
   const [iconPickerVisible, setIconPickerVisible] = useState(false);
@@ -85,6 +86,19 @@ export default function CreateBucketScreen() {
     });
   }, []);
 
+  // Listen for pixel icon creation
+  useEffect(() => {
+    return onPixelIconChange(() => {
+      const data = getPixelIcon();
+      if (data) {
+        setSelectedIcon(JSON.stringify(data));
+        setIconType('pixel');
+        setIconPickerVisible(false);
+        clearPixelIcon();
+      }
+    });
+  }, []);
+
   const isValid = name.trim().length > 0 && amount.trim().length > 0 && selectedIcon && selectedColor;
   const SelectedIconComponent = selectedIcon ? getBucketIcon(selectedIcon) : null;
   const selectedPalette = selectedColor ? BucketColors[selectedColor] : null;
@@ -112,94 +126,66 @@ export default function CreateBucketScreen() {
         </Text>
 
         <View style={styles.fields}>
-          <View style={[styles.field, { backgroundColor: surfaceColor }]}>
-            {name.length > 0 && (
-              <Text style={[styles.fieldLabel, { color: secondaryColor }]}>Bucket name</Text>
-            )}
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={[styles.fieldInput, { color: textColor }]}
-                placeholder=""
-                value={name}
-                onChangeText={setName}
-                autoFocus
-
-              />
-              {name.length === 0 && (
-                <View style={styles.placeholderOverlay} pointerEvents="none">
-                  <Text style={[styles.placeholderStatic, { color: secondaryColor }]}>
-                    Bucket name
-                  </Text>
-                  <Animated.Text
-                    key={placeholderIndex}
-                    entering={FadeInUp.duration(300)}
-                    exiting={FadeOutDown.duration(300)}
-                    style={[styles.placeholderExample, { color: `${secondaryColor}60` }]}
-                  >
-                    e.g. {PLACEHOLDER_EXAMPLES[placeholderIndex]}
-                  </Animated.Text>
-                </View>
-              )}
-            </View>
-          </View>
-          <View style={[styles.field, { backgroundColor: surfaceColor }]}>
-            {amount.length > 0 && (
-              <Text style={[styles.fieldLabel, { color: secondaryColor }]}>Target amount</Text>
-            )}
-            <TextInput
-              style={[styles.fieldInput, { color: textColor }]}
-              placeholder="Target amount"
-              placeholderTextColor={secondaryColor}
-              value={amount}
-              onChangeText={(v) => setAmount(formatAmountInput(v))}
-              keyboardType="numeric"
-            />
-          </View>
+          <FormField
+            label="Bucket name"
+            value={name}
+            onChangeText={setName}
+            autoFocus
+            customPlaceholder={
+              <>
+                <Text style={[styles.placeholderStatic, { color: secondaryColor }]}>
+                  Bucket name
+                </Text>
+                <Animated.Text
+                  key={placeholderIndex}
+                  entering={FadeInUp.duration(300)}
+                  exiting={FadeOutDown.duration(300)}
+                  style={[styles.placeholderExample, { color: `${secondaryColor}60` }]}
+                >
+                  e.g. {PLACEHOLDER_EXAMPLES[placeholderIndex]}
+                </Animated.Text>
+              </>
+            }
+          />
+          <FormField
+            label="Target amount"
+            value={amount}
+            onChangeText={(v) => setAmount(formatAmountInput(v))}
+            keyboardType="numeric"
+          />
 
           <View style={styles.pickersRow}>
-            <Pressable
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setIconPickerVisible(true); }}
-              style={[styles.input, styles.pickerButton, { backgroundColor: surfaceColor }]}
-            >
-              <View style={styles.pickerInner}>
-                {selectedIcon ? (
-                  <View style={styles.pickerSelected}>
-                    <View style={[styles.pickerIconCircle, { backgroundColor: 'rgba(0,0,0,0.08)' }]}>
-                      {iconType === 'emoji' ? (
-                        <Text style={{ fontSize: 18 }}>{selectedIcon}</Text>
-                      ) : (
-                        SelectedIconComponent && <SelectedIconComponent size={18} color={textColor} weight="fill" />
-                      )}
-                    </View>
-                    <Text style={[styles.pickerLabel, { color: textColor }]} numberOfLines={1}>
-                      {iconType === 'emoji' ? getEmojiName(selectedIcon!) : selectedIcon}
-                    </Text>
+            <FormSelect
+              label="Select icon"
+              value={selectedIcon ? (iconType === 'pixel' ? 'Custom' : iconType === 'emoji' ? getEmojiName(selectedIcon) : selectedIcon) : null}
+              onPress={() => setIconPickerVisible(true)}
+              style={{ flex: 1 }}
+              selectedIcon={
+                selectedIcon ? (
+                  <View style={[styles.pickerIconCircle, { backgroundColor: 'rgba(0,0,0,0.08)' }]}>
+                    {iconType === 'pixel' ? (
+                      <PixelIcon data={JSON.parse(selectedIcon)} size={18} color={textColor} />
+                    ) : iconType === 'emoji' ? (
+                      <Text style={{ fontSize: 18 }}>{selectedIcon}</Text>
+                    ) : (
+                      SelectedIconComponent && <SelectedIconComponent size={18} color={textColor} weight="fill" />
+                    )}
                   </View>
-                ) : (
-                  <Text style={[styles.pickerPlaceholder, { color: secondaryColor }]}>Select icon</Text>
-                )}
-                <CaretDown size={14} color={secondaryColor} weight="bold" />
-              </View>
-            </Pressable>
+                ) : undefined
+              }
+            />
 
-            <Pressable
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setColorPickerVisible(true); }}
-              style={[styles.input, styles.pickerButton, { backgroundColor: surfaceColor }]}
-            >
-              <View style={styles.pickerInner}>
-                {selectedColor ? (
-                  <View style={styles.pickerSelected}>
-                    <View style={[styles.colorDot, { backgroundColor: displayColor }]} />
-                    <Text style={[styles.pickerLabel, { color: textColor }]}>
-                      {selectedColor === 'custom' ? 'Custom' : selectedColor}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={[styles.pickerPlaceholder, { color: secondaryColor }]}>Select color</Text>
-                )}
-                <CaretDown size={14} color={secondaryColor} weight="bold" />
-              </View>
-            </Pressable>
+            <FormSelect
+              label="Select color"
+              value={selectedColor ? (selectedColor === 'custom' ? 'Custom' : selectedColor) : null}
+              onPress={() => setColorPickerVisible(true)}
+              style={{ flex: 1 }}
+              selectedIcon={
+                selectedColor ? (
+                  <View style={[styles.colorDot, { backgroundColor: displayColor }]} />
+                ) : undefined
+              }
+            />
           </View>
         </View>
 
@@ -228,9 +214,9 @@ export default function CreateBucketScreen() {
               setSaving(false);
             }
           }}
-          style={[styles.createButton, { backgroundColor: isValid && !saving ? textColor : surfaceColor }]}
+          style={[styles.createButton, { backgroundColor: textColor, opacity: isValid && !saving ? 1 : 0.25 }]}
         >
-          <Text style={[styles.createButtonText, { color: isValid && !saving ? bgColor : secondaryColor }]}>
+          <Text style={[styles.createButtonText, { color: bgColor }]}>
             {saving ? 'Creating...' : 'Create bucket'}
           </Text>
         </Pressable>
@@ -254,119 +240,6 @@ export default function CreateBucketScreen() {
         }}
       />
     </View>
-  );
-}
-
-function IconPickerModal({ visible, onClose, selectedIcon, selectedType, onSelect }: {
-  visible: boolean; onClose: () => void; selectedIcon: string | null; selectedType: 'icon' | 'emoji'; onSelect: (icon: string, type: 'icon' | 'emoji') => void;
-}) {
-  const bgColor = useThemeColor({}, 'background');
-  const textColor = useThemeColor({}, 'text');
-  const surfaceColor = useThemeColor({}, 'surface');
-  const secondaryColor = useThemeColor({}, 'textSecondary');
-  const [tab, setTab] = useState<'icons' | 'emojis'>(selectedType === 'emoji' ? 'emojis' : 'icons');
-  const [search, setSearch] = useState('');
-
-  const filteredIcons = useMemo(() => {
-    if (!search.trim() || tab !== 'icons') return BUCKET_ICON_LIST;
-    const q = search.toLowerCase();
-    return BUCKET_ICON_LIST.filter((i) => i.name.toLowerCase().includes(q));
-  }, [search, tab]);
-
-  const filteredEmojis = useMemo(() => {
-    if (!search.trim() || tab !== 'emojis') return EMOJI_LIST;
-    const q = search.toLowerCase();
-    return EMOJI_LIST.filter((e) => e.tags.includes(q));
-  }, [search, tab]);
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={[styles.modalRoot, { backgroundColor: bgColor }]}>
-        <View style={[styles.stickyClose, { marginTop: 4 }]}>
-          <Pressable
-            onPress={onClose}
-            style={[styles.closeCircle, { backgroundColor: surfaceColor }]}
-          >
-            <X size={18} color={secondaryColor} weight="bold" />
-          </Pressable>
-        </View>
-
-        <Text style={[styles.modalTitle, { color: textColor }]}>Select icon</Text>
-
-        {/* Tabs */}
-        <View style={styles.tabRow}>
-          <Pressable
-            onPress={() => { setTab('icons'); setSearch(''); }}
-            style={[styles.tab, tab === 'icons' && { backgroundColor: textColor }]}
-          >
-            <Text style={[styles.tabText, { color: tab === 'icons' ? bgColor : secondaryColor }]}>Icons</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => { setTab('emojis'); setSearch(''); }}
-            style={[styles.tab, tab === 'emojis' && { backgroundColor: textColor }]}
-          >
-            <Text style={[styles.tabText, { color: tab === 'emojis' ? bgColor : secondaryColor }]}>Emojis</Text>
-          </Pressable>
-        </View>
-
-        <View style={[styles.searchBar, { backgroundColor: surfaceColor }]}>
-          <MagnifyingGlass size={18} color={secondaryColor} weight="bold" />
-          <TextInput
-            style={[styles.searchInput, { color: textColor }]}
-            placeholder={tab === 'icons' ? 'Search icons...' : 'Search emojis...'}
-            placeholderTextColor={secondaryColor}
-            value={search}
-            onChangeText={setSearch}
-          />
-        </View>
-
-        {tab === 'icons' ? (
-          <FlatList
-            key="icons-6"
-            data={filteredIcons}
-            numColumns={6}
-            keyExtractor={(item) => item.name}
-            contentContainerStyle={styles.iconGrid}
-            columnWrapperStyle={styles.iconRow}
-            maxToRenderPerBatch={12}
-            initialNumToRender={24}
-            removeClippedSubviews
-            renderItem={({ item }) => {
-              const Icon = item.component;
-              const isSelected = selectedType === 'icon' && selectedIcon === item.name;
-              return (
-                <Pressable
-                  onPress={() => onSelect(item.name, 'icon')}
-                  style={[styles.emojiOption, isSelected && { backgroundColor: surfaceColor }]}
-                >
-                  <Icon size={26} color={isSelected ? textColor : secondaryColor} weight="fill" />
-                </Pressable>
-              );
-            }}
-          />
-        ) : (
-          <FlatList
-            key="emojis-6"
-            data={filteredEmojis}
-            numColumns={6}
-            keyExtractor={(item) => item.emoji}
-            contentContainerStyle={styles.iconGrid}
-            columnWrapperStyle={styles.iconRow}
-            renderItem={({ item }) => {
-              const isSelected = selectedType === 'emoji' && selectedIcon === item.emoji;
-              return (
-                <Pressable
-                  onPress={() => onSelect(item.emoji, 'emoji')}
-                  style={[styles.emojiOption, isSelected && { backgroundColor: surfaceColor }]}
-                >
-                  <Text style={styles.emojiText}>{item.emoji}</Text>
-                </Pressable>
-              );
-            }}
-          />
-        )}
-      </View>
-    </Modal>
   );
 }
 
@@ -414,11 +287,7 @@ function ColorPickerModal({ visible, onClose, selectedColor, onSelect, onCustomP
             );
           })}
 
-          {/* Custom color */}
-          <Pressable
-            onPress={onCustomPress}
-            style={styles.colorItem}
-          >
+          <Pressable onPress={onCustomPress} style={styles.colorItem}>
             <View style={[styles.colorCircle, styles.customCircle, { borderColor: secondaryColor }]}>
               <Text style={[styles.customPlus, { color: secondaryColor }]}>+</Text>
             </View>
@@ -464,36 +333,6 @@ const styles = StyleSheet.create({
   fields: {
     gap: 12,
   },
-  field: {
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    minHeight: 56,
-    justifyContent: 'center',
-  },
-  fieldLabel: {
-    fontSize: 12,
-    fontFamily: Fonts.regular,
-    marginBottom: 2,
-  },
-  fieldInput: {
-    fontSize: 16,
-    fontFamily: Fonts.medium,
-    letterSpacing: 0,
-    padding: 0,
-  },
-  inputWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  placeholderOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   placeholderStatic: {
     fontSize: 16,
     fontFamily: Fonts.medium,
@@ -502,30 +341,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: Fonts.medium,
   },
-  input: {
-    height: 56,
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    fontSize: 16,
-    fontFamily: Fonts.medium,
-    justifyContent: 'center',
-  },
   pickersRow: {
     flexDirection: 'row',
     gap: 12,
-  },
-  pickerButton: {
-    flex: 1,
-  },
-  pickerInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pickerSelected: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
   },
   pickerIconCircle: {
     width: 32,
@@ -533,15 +351,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pickerLabel: {
-    fontSize: 14,
-    fontFamily: Fonts.medium,
-    textTransform: 'capitalize',
-  },
-  pickerPlaceholder: {
-    fontSize: 16,
-    fontFamily: Fonts.medium,
   },
   colorDot: {
     width: 24,
@@ -661,5 +470,23 @@ const styles = StyleSheet.create({
   },
   emojiText: {
     fontSize: 26,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: 16,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontFamily: Fonts.medium,
+  },
+  emptyButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  emptyButtonText: {
+    fontSize: 15,
+    fontFamily: Fonts.semiBold,
   },
 });
