@@ -25,7 +25,7 @@ import { registerForPushNotifications } from '@/lib/push-notifications';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 
-try { SplashScreen.preventAutoHideAsync(); } catch {}
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -55,7 +55,7 @@ function RootLayoutGuard() {
 
   useEffect(() => {
     if (!loading) {
-      SplashScreen.hide?.() ?? SplashScreen.hideAsync().catch(() => {});
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [loading]);
 

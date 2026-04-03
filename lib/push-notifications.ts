@@ -54,7 +54,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
     (Constants as any)?.easConfig?.projectId;
 
   if (!projectId) {
-    console.warn('No EAS projectId found — push token registration skipped');
+    // Expected in Expo Go — push tokens require a development build
     return null;
   }
 

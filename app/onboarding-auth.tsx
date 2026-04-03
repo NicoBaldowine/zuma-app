@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
-import { Video, ResizeMode } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import Svg, { Path } from 'react-native-svg';
@@ -25,10 +25,19 @@ function GoogleLogo({ size = 20 }: { size?: number }) {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const splashVideo = require('@/assets/videos/splashvideo.mp4');
+
 export default function OnboardingAuthScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [signingIn, setSigningIn] = useState(false);
+
+  const player = useVideoPlayer(splashVideo, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
 
   const handleGoogleSignIn = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -44,13 +53,11 @@ export default function OnboardingAuthScreen() {
 
   return (
     <View style={styles.root}>
-      <Video
-        source={require('@/assets/videos/splashvideo.mp4')}
+      <VideoView
+        player={player}
         style={styles.video}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay
-        isLooping
-        isMuted
+        contentFit="cover"
+        nativeControls={false}
       />
 
       <LinearGradient
