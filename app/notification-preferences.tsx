@@ -13,6 +13,7 @@ import {
 
 const categories = [
   { key: 'goalReached', label: 'Goal reached', description: 'Get notified when a bucket hits its target' },
+  { key: 'autoDepositPaused', label: 'Auto-deposit paused', description: 'When an auto-deposit is paused due to insufficient funds' },
   { key: 'bucketSuggestions', label: 'Bucket ideas', description: 'Fun suggestions for new savings goals based on trends' },
 ] as const;
 
@@ -25,6 +26,7 @@ export default function NotificationPreferencesScreen() {
 
   const [enabled, setEnabled] = useState<Record<string, boolean>>({
     goalReached: true,
+    autoDepositPaused: true,
     bucketSuggestions: true,
   });
 
@@ -35,7 +37,8 @@ export default function NotificationPreferencesScreen() {
     fetchNotificationPreferences().then((prefs) => {
       setEnabled({
         goalReached: prefs.goalReached,
-        bucketSuggestions: (prefs as any).bucketSuggestions ?? true,
+        autoDepositPaused: prefs.autoDepositPaused,
+        bucketSuggestions: prefs.bucketSuggestions,
       });
     }).catch(() => {});
   }, []);
@@ -50,6 +53,8 @@ export default function NotificationPreferencesScreen() {
     debounceRef.current = setTimeout(() => {
       updateNotificationPreferences(undefined, {
         goalReached: next.goalReached,
+        autoDepositPaused: next.autoDepositPaused,
+        bucketSuggestions: next.bucketSuggestions,
       }).catch(() => {});
     }, 500);
   }

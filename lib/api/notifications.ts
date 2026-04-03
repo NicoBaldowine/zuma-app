@@ -5,9 +5,11 @@ import type { NotificationPreferences } from '@/types';
 
 const DEFAULTS: Omit<NotificationPreferences, 'id' | 'userId'> = {
   goalReached: true,
+  bucketSuggestions: true,
   deposits: true,
   weeklySummary: true,
   lowBalance: true,
+  autoDepositPaused: true,
 };
 
 export async function fetchNotificationPreferences(
@@ -42,9 +44,11 @@ export async function updateNotificationPreferences(
 ): Promise<void> {
   const update: Record<string, unknown> = {};
   if (prefs.goalReached !== undefined) update.goal_reached = prefs.goalReached;
+  if (prefs.bucketSuggestions !== undefined) update.bucket_suggestions = prefs.bucketSuggestions;
   if (prefs.deposits !== undefined) update.deposits = prefs.deposits;
   if (prefs.weeklySummary !== undefined) update.weekly_summary = prefs.weeklySummary;
   if (prefs.lowBalance !== undefined) update.low_balance = prefs.lowBalance;
+  if (prefs.autoDepositPaused !== undefined) update.auto_deposit_paused = prefs.autoDepositPaused;
 
   const { error } = await supabase
     .from('notification_preferences')

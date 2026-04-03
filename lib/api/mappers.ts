@@ -13,7 +13,7 @@ export function mapBucketRow(row: BucketRow): Bucket {
     id: row.id,
     name: row.name,
     icon: row.icon,
-    iconType: row.icon_type as 'icon' | 'emoji',
+    iconType: row.icon_type as 'icon' | 'emoji' | 'pixel',
     colorKey: row.color_key as BucketColorKey,
     customColor: row.custom_color ?? undefined,
     currentAmount: row.current_amount,
@@ -57,9 +57,11 @@ export function mapNotificationPrefsRow(row: NotifRow): NotificationPreferences 
     id: row.id,
     userId: row.user_id,
     goalReached: row.goal_reached,
+    bucketSuggestions: (row as any).bucket_suggestions ?? true,
     deposits: row.deposits,
     weeklySummary: row.weekly_summary,
     lowBalance: row.low_balance,
+    autoDepositPaused: (row as any).auto_deposit_paused ?? true,
   };
 }
 

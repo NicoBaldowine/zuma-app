@@ -21,6 +21,9 @@ import { AutoDepositsProvider } from '@/contexts/auto-deposits-context';
 import { CelebrationProvider } from '@/contexts/celebration-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { registerForPushNotifications } from '@/lib/push-notifications';
+import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
 
 try { SplashScreen.preventAutoHideAsync(); } catch {}
 
@@ -76,31 +79,41 @@ function RootLayoutInner() {
   const { savingsBuckets, loading: bucketsLoading } = useBuckets();
   const segments = useSegments();
   const colorScheme = useColorScheme();
+  const router = useRouter();
+
+  // Register push token when authenticated
+  useEffect(() => {
+    if (session) {
+      registerForPushNotifications().catch(() => {});
+    }
+  }, [session]);
+
+  // Handle notification taps — navigate to bucket detail
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data?.bucketId) {
+        router.push({ pathname: '/bucket/[id]', params: { id: data.bucketId as string } });
+      }
+    });
+    return () => sub.remove();
+  }, [router]);
 
   const hasCompletedOnboarding = savingsBuckets.length > 0;
   const onAuthScreen = segments[0] === 'onboarding-auth' || segments[0] === 'onboarding-bucket' || segments[0] === 'onboarding-bank';
 
-  const navTheme = colorScheme === 'dark'
-    ? {
-        ...DarkTheme,
-        colors: {
-          ...DarkTheme.colors,
-          background: Colors.dark.background,
-          card: Colors.dark.background,
-          text: Colors.dark.text,
-          border: Colors.dark.border,
-        },
-      }
-    : {
-        ...DefaultTheme,
-        colors: {
-          ...DefaultTheme.colors,
-          background: Colors.light.background,
-          card: Colors.light.background,
-          text: Colors.light.text,
-          border: Colors.light.border,
-        },
-      };
+  const isDark = colorScheme === 'dark' || colorScheme === 'gold';
+  const palette = Colors[colorScheme] ?? Colors.dark;
+  const navTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme : DefaultTheme).colors,
+      background: palette.background,
+      card: palette.background,
+      text: palette.text,
+      border: palette.border,
+    },
+  };
 
   if (!session && !onAuthScreen) {
     return <Redirect href="/onboarding-auth" />;
@@ -127,6 +140,10 @@ function RootLayoutInner() {
         <Stack.Screen name="onboarding-bucket" />
         <Stack.Screen name="onboarding-bank" options={{ gestureEnabled: false }} />
         <Stack.Screen
+          name="share-preview"
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
           name="more-actions"
           options={{
             presentation: 'formSheet',
@@ -136,12 +153,29 @@ function RootLayoutInner() {
           }}
         />
         <Stack.Screen
+          name="new-bucket"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: 'fitToContents',
+            sheetGrabberVisible: true,
+            sheetCornerRadius: 30,
+          }}
+        />
+        <Stack.Screen
+          name="spend-bucket"
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
           name="create-bucket"
           options={{ presentation: 'modal' }}
         />
         <Stack.Screen
           name="edit-bucket"
           options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="pixel-editor"
+          options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
         />
         <Stack.Screen
           name="refresh-balance"
