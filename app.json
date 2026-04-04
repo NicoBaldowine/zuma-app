@@ -45,7 +45,8 @@
           }
         }
       ],
-      "expo-video"
+      "expo-video",
+      "react-native-plaid-link-sdk"
     ],
     "runtimeVersion": {
       "policy": "appVersion"

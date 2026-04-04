@@ -48,13 +48,14 @@ export default function SharePreviewScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.dark }]}>
-      <Pressable
-        style={[styles.closeButton, { top: insets.top + 12 }]}
-        onPress={() => router.back()}
-        hitSlop={12}
-      >
-        <X size={20} color={palette.darkText} weight="bold" />
-      </Pressable>
+      <View style={[styles.stickyClose, { marginTop: 4 }]}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.closeCircle}
+        >
+          <X size={18} color={palette.darkText} weight="bold" />
+        </Pressable>
+      </View>
 
       <View style={styles.cardContainer}>
         <ViewShot
@@ -86,16 +87,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeButton: {
+  stickyClose: {
     position: 'absolute',
-    right: 20,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    top: 0,
+    right: 0,
+    left: 0,
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 4,
+    zIndex: 10,
+  },
+  closeCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
+    alignSelf: 'flex-end',
   },
   cardContainer: {
     borderRadius: 24,

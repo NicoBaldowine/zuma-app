@@ -107,7 +107,7 @@ function RootLayoutInner() {
   }, [router]);
 
   const hasCompletedOnboarding = savingsBuckets.length > 0;
-  const onAuthScreen = segments[0] === 'onboarding-auth' || segments[0] === 'onboarding-bucket' || segments[0] === 'onboarding-bank';
+  const onAuthScreen = segments[0] === 'onboarding-auth' || segments[0] === 'onboarding-bucket' || segments[0] === 'onboarding-bank' || segments[0] === 'pixel-editor' || segments[0] === 'custom-color';
 
   const isDark = colorScheme === 'dark' || colorScheme === 'gold';
   const palette = Colors[colorScheme] ?? Colors.dark;

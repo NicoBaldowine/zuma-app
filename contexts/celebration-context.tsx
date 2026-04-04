@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, Dimensions, useColorScheme, Modal } from 'react-native';
+import { StyleSheet, View, Text, Dimensions, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -7,7 +7,6 @@ import Animated, {
   withTiming,
   withDelay,
   withSequence,
-  runOnJS,
   Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -26,6 +25,7 @@ const CONFETTI_COUNT = 35;
 type CelebrationContextValue = {
   celebrate: (bucketName: string) => void;
   showToast: (message: string) => void;
+  renderOverlay: () => React.ReactNode;
 };
 
 const CelebrationContext = createContext<CelebrationContextValue | null>(null);
@@ -138,14 +138,7 @@ export function CelebrationProvider({ children }: { children: React.ReactNode })
 
   const celebrate = useCallback((bucketName: string) => {
     setActive(true);
-    setToastMessage(`${bucketName} completed!`);
-    setToastVisible(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      setToastVisible(false);
-    }, 2800);
 
     setTimeout(() => {
       setActive(false);
@@ -161,21 +154,29 @@ export function CelebrationProvider({ children }: { children: React.ReactNode })
     }, 2500);
   }, []);
 
-  return (
-    <CelebrationContext.Provider value={{ celebrate, showToast }}>
-      {children}
-      <Modal visible={active} transparent animationType="none" statusBarTranslucent>
+  const renderOverlay = useCallback(() => (
+    <>
+      {active && (
         <View style={styles.confettiContainer} pointerEvents="none">
           {Array.from({ length: CONFETTI_COUNT }).map((_, i) => (
             <ConfettiPiece key={i} index={i} active={active} />
           ))}
         </View>
-      </Modal>
-      <Modal visible={toastVisible} transparent animationType="none" statusBarTranslucent>
-        <Toast message={toastMessage} visible={toastVisible} />
-      </Modal>
+      )}
+    </>
+  ), [active]);
+
+  return (
+    <CelebrationContext.Provider value={{ celebrate, showToast, renderOverlay }}>
+      {children}
     </CelebrationContext.Provider>
   );
+}
+
+export function CelebrationOverlay() {
+  const ctx = useContext(CelebrationContext);
+  if (!ctx) return null;
+  return <>{ctx.renderOverlay()}</>;
 }
 
 export function useCelebration() {
@@ -187,7 +188,8 @@ export function useCelebration() {
 const styles = StyleSheet.create({
   confettiContainer: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 9999,
+    zIndex: 99999,
+    elevation: 99999,
   },
   toast: {
     position: 'absolute',
@@ -197,7 +199,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 14,
     alignItems: 'center',
-    zIndex: 10000,
+    zIndex: 100000,
+    elevation: 100000,
   },
   toastText: {
     fontSize: 14,

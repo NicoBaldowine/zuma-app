@@ -95,7 +95,7 @@ export default function OnboardingBankScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             const result = await openPlaid();
             if (result.success) {
-              handleFinish();
+              await handleFinish();
             } else if (result.error && result.error !== 'Link cancelled') {
               alert(result.error);
             }

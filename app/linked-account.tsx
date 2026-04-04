@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { getCurrentUserId } from '@/lib/auth/get-user-id';
 import { resetAllBucketBalances } from '@/lib/api/transfers';
 import { usePlaidLink } from '@/hooks/use-plaid-link';
+import { useBuckets } from '@/contexts/buckets-context';
 
 const BENEFITS = [
   {
@@ -37,13 +38,6 @@ type LinkedAccount = {
   connectedDate: string;
 };
 
-const FAKE_ACCOUNT: LinkedAccount = {
-  institutionName: 'Chase',
-  accountName: 'Chase Savings',
-  accountMask: '9878',
-  accountSubtype: 'savings',
-  connectedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-};
 
 export default function LinkedAccountScreen() {
   const router = useRouter();
@@ -53,7 +47,8 @@ export default function LinkedAccountScreen() {
   const secondaryColor = useThemeColor({}, 'textSecondary');
   const [account, setAccount] = useState<LinkedAccount | null>(null);
   const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
+  const { open: openPlaidLink, loading: connecting } = usePlaidLink();
+  const { refresh } = useBuckets();
 
   // Check if already linked in DB
   useEffect(() => {
@@ -80,29 +75,23 @@ export default function LinkedAccountScreen() {
     })();
   }, []);
 
-  // Simulate connecting with Plaid
   const handleConnect = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setConnecting(true);
+    const result = await openPlaidLink();
 
-    // Simulate a brief loading delay
-    await new Promise((r) => setTimeout(r, 1200));
-
-    // Insert fake linked account into DB + seed balance
-    try {
-      await (supabase.from as any)('linked_accounts').upsert({
-        user_id: getCurrentUserId(),
-        institution_name: FAKE_ACCOUNT.institutionName,
-        account_name: FAKE_ACCOUNT.accountName,
-        account_mask: FAKE_ACCOUNT.accountMask,
-        account_subtype: FAKE_ACCOUNT.accountSubtype,
-      }, { onConflict: 'user_id' });
-      await seedMainBucketBalance(250000); // $2,500
-    } catch {}
-
-    setAccount(FAKE_ACCOUNT);
-    setConnecting(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (result.success) {
+      setAccount({
+        institutionName: result.institutionName ?? 'Bank',
+        accountName: result.institutionName ? `${result.institutionName} Account` : 'Account',
+        accountMask: result.accountMask ?? '0000',
+        accountSubtype: 'checking',
+        connectedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      });
+      await refresh();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (result.error && result.error !== 'Link cancelled') {
+      Alert.alert('Connection failed', result.error);
+    }
   };
 
   // Unlink account
@@ -194,9 +183,9 @@ export default function LinkedAccountScreen() {
 
         {/* Unlink button */}
         <View style={styles.bottom}>
-          <Pressable onPress={handleUnlink} style={[styles.unlinkButton, { backgroundColor: surfaceColor }]}>
-            <LinkBreak size={18} color={secondaryColor} weight="bold" />
-            <Text style={[styles.unlinkText, { color: secondaryColor }]}>Unlink account</Text>
+          <Pressable onPress={handleUnlink} style={[styles.unlinkButton, { backgroundColor: textColor }]}>
+            <LinkBreak size={18} color={bgColor} weight="bold" />
+            <Text style={[styles.unlinkText, { color: bgColor }]}>Unlink account</Text>
           </Pressable>
         </View>
       </View>

@@ -27,14 +27,14 @@ export default function CustomColorScreen() {
   const handleSelect = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCustomColor(colorRef.current);
-    router.back();
+    router.dismiss();
   }, [router]);
 
   return (
     <View style={[styles.root, { backgroundColor: bgColor }]}>
       <View style={[styles.stickyClose, { marginTop: 4 }]}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.dismiss()}
           style={[styles.closeCircle, { backgroundColor: surfaceColor }]}
         >
           <X size={18} color={secondaryColor} weight="bold" />

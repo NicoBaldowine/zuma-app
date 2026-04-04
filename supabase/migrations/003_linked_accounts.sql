@@ -3,13 +3,17 @@
 -- ============================================================
 
 create table if not exists linked_accounts (
-  id                uuid primary key default gen_random_uuid(),
-  user_id           uuid not null unique references profiles(id) on delete cascade,
-  institution_name  text not null default 'Bank',
-  account_name      text not null default 'Account',
-  account_mask      text not null default '0000',
-  account_subtype   text not null default 'checking',
-  created_at        timestamptz not null default now()
+  id                  uuid primary key default gen_random_uuid(),
+  user_id             uuid not null unique references profiles(id) on delete cascade,
+  plaid_item_id       text not null,
+  plaid_access_token  text not null,
+  account_id          text not null,
+  institution_name    text,
+  institution_id      text,
+  account_name        text,
+  account_mask        text,
+  account_subtype     text,
+  created_at          timestamptz not null default now()
 );
 
 alter table linked_accounts disable row level security;

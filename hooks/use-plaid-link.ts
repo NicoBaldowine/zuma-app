@@ -2,9 +2,10 @@ import { useState, useCallback } from 'react';
 import Constants from 'expo-constants';
 import { supabase } from '@/lib/supabase';
 import { seedMainBucketBalance } from '@/lib/api/transfers';
-import { createLinkToken, exchangePublicToken } from '@/lib/api/plaid';
+import { createLinkToken, exchangePublicToken, getBalance } from '@/lib/api/plaid';
 
 const isExpoGo = Constants.appOwnership === 'expo';
+const plaidEnv = process.env.EXPO_PUBLIC_PLAID_ENV ?? 'sandbox';
 
 let plaidSdk: typeof import('react-native-plaid-link-sdk') | null = null;
 if (!isExpoGo) {
@@ -41,7 +42,11 @@ async function sandboxLink(): Promise<PlaidLinkResult> {
   }
 
   // Seed main bucket with the real Plaid sandbox balance
-  await seedMainBucketBalance(data.balance_cents);
+  try {
+    await seedMainBucketBalance(data.balance_cents);
+  } catch {
+    // Seed may fail if balance already exists — non-blocking
+  }
 
   return {
     success: true,
@@ -57,18 +62,17 @@ export function usePlaidLink() {
   const openLink = useCallback(async (): Promise<PlaidLinkResult> => {
     setLoading(true);
     try {
-      if (!plaidSdk) {
-        const result = await sandboxLink();
-        setLoading(false);
-        return result;
-      }
+      // Native Plaid Link SDK (required for production)
+      if (plaidSdk) {
+        const linkToken = await createLinkToken();
 
-      // Real Plaid Link flow
-      const linkToken = await createLinkToken();
+        const nativeResult = await new Promise<PlaidLinkResult>((resolve) => {
+          const fallbackTimer = setTimeout(() => {
+            resolve({ success: false, error: 'Plaid Link timed out. Please try again.' });
+          }, 15000);
 
-      const result = await Promise.race<PlaidLinkResult>([
-        new Promise<PlaidLinkResult>((resolve) => {
           const onSuccess = async (success: any) => {
+            clearTimeout(fallbackTimer);
             try {
               const exchangeResult = await exchangePublicToken(
                 success.publicToken,
@@ -87,6 +91,11 @@ export function usePlaidLink() {
                     : undefined,
                 },
               );
+              try {
+                const accounts = await getBalance();
+                const balanceCents = Math.round((accounts[0]?.current ?? 0) * 100);
+                if (balanceCents > 0) await seedMainBucketBalance(balanceCents);
+              } catch {}
               resolve({
                 success: true,
                 institutionName: exchangeResult.institutionName,
@@ -98,27 +107,40 @@ export function usePlaidLink() {
           };
 
           const onExit = (exit: any) => {
+            clearTimeout(fallbackTimer);
             resolve({
               success: false,
-              error: exit.error?.displayMessage ?? 'Link cancelled',
+              error: exit.error?.displayMessage ?? exit.error?.errorMessage ?? 'Link cancelled',
             });
           };
 
-          try {
-            plaidSdk!.create({ token: linkToken });
-            plaidSdk!.open({ onSuccess, onExit });
-          } catch (err: any) {
-            resolve({ success: false, error: err.message ?? 'Failed to open Plaid Link' });
-          }
-        }),
-        // Safety timeout
-        new Promise<PlaidLinkResult>((resolve) =>
-          setTimeout(() => resolve({ success: false, error: 'Plaid Link timed out' }), 15000),
-        ),
-      ]);
+          plaidSdk!.create({
+            token: linkToken,
+            noLoadingState: false,
+            onLoad: () => {
+              clearTimeout(fallbackTimer);
+              plaidSdk!.open({ onSuccess, onExit });
+            },
+          });
+        });
 
+        setLoading(false);
+        return nativeResult;
+      }
+
+      // Sandbox fallback — only allowed in development
+      if (plaidEnv === 'sandbox') {
+        const result = await sandboxLink();
+        setLoading(false);
+        return result;
+      }
+
+      // Production without native SDK (Expo Go) — not supported
       setLoading(false);
-      return result;
+      return {
+        success: false,
+        error: 'Bank connection requires a native build. Please use the installed app.',
+      };
     } catch (err: any) {
       setLoading(false);
       return { success: false, error: err.message ?? 'Failed to initialize Plaid Link' };

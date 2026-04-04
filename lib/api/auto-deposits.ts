@@ -107,6 +107,15 @@ export async function deleteAutoDeposit(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function deleteAutoDepositForBucket(targetBucketId: string): Promise<void> {
+  const { error } = await supabase
+    .from('auto_deposit_rules')
+    .delete()
+    .eq('target_bucket_id', targetBucketId);
+
+  if (error) throw error;
+}
+
 export async function pauseAutoDeposit(id: string, paused: boolean, frequency?: AutoDepositFrequency): Promise<void> {
   const update: Record<string, unknown> = { is_paused: paused };
   if (!paused && frequency) {

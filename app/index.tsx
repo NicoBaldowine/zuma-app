@@ -90,21 +90,6 @@ export default function HomeScreen() {
       <CelebrationOverlay />
       <StatusBar style={colorScheme === 'dark' || colorScheme === 'gold' ? 'light' : 'dark'} />
 
-      {/* Sticky compact balance badge — shows when scrolled */}
-      {!loading && (
-        <Animated.View style={[styles.stickyBadge, badgeStyle]} pointerEvents="none">
-          <BlurView
-            intensity={80}
-            tint={colorScheme === 'dark' || colorScheme === 'gold' ? 'dark' : 'light'}
-            style={styles.badgeBlur}
-          >
-            <Text style={[styles.badgeText, { color: textColor }]}>
-              {formatCurrency(wallet.totalBalance)}
-            </Text>
-          </BlurView>
-        </Animated.View>
-      )}
-
       <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -134,6 +119,21 @@ export default function HomeScreen() {
           onCardPress={handleCardPress}
         />
       </Animated.ScrollView>
+
+      {/* Sticky compact balance badge — shows when scrolled */}
+      {!loading && (
+        <Animated.View style={[styles.stickyBadge, badgeStyle]} pointerEvents="none">
+          <BlurView
+            intensity={80}
+            tint={colorScheme === 'dark' || colorScheme === 'gold' ? 'dark' : 'light'}
+            style={styles.badgeBlur}
+          >
+            <Text style={[styles.badgeText, { color: textColor }]}>
+              {formatCurrency(wallet.totalBalance)}
+            </Text>
+          </BlurView>
+        </Animated.View>
+      )}
     </View>
   );
 }

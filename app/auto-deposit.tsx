@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  StyleSheet, View, Text, Pressable, Modal, ScrollView, Keyboard,
+  StyleSheet, View, Text, Pressable, Modal, ScrollView, Keyboard, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -59,17 +59,23 @@ export default function AutoDepositScreen() {
   const [saving, setSaving] = useState(false);
 
   const [fromPickerVisible, setFromPickerVisible] = useState(false);
+  const [toPickerVisible, setToPickerVisible] = useState(false);
   const [frequencyPickerVisible, setFrequencyPickerVisible] = useState(false);
   const [endPickerVisible, setEndPickerVisible] = useState(false);
+  const [toBucketId, setToBucketId] = useState(targetBucket?.id ?? '');
 
+  const currentTarget = buckets.find((b) => b.id === toBucketId) ?? targetBucket;
   const fromBucket = buckets.find((b) => b.id === fromBucketId) ?? mainBucket;
   const fromPalette = getBucketPalette(fromBucket.colorKey);
-  const targetPalette = getBucketPalette(targetBucket.colorKey);
+  const targetPalette = getBucketPalette(currentTarget.colorKey);
   const FromIcon = getBucketIcon(fromBucket.icon);
-  const TargetIcon = getBucketIcon(targetBucket.icon);
+  const TargetIcon = getBucketIcon(currentTarget.icon);
 
   const availableFromBuckets = buckets.filter(
-    (b) => b.id !== targetBucket?.id
+    (b) => b.id !== currentTarget?.id
+  );
+  const availableToBuckets = buckets.filter(
+    (b) => !b.isMain && b.id !== fromBucketId
   );
 
   const isValid = amount.trim().length > 0 && parseFloat(parseAmountInput(amount)) > 0 && frequency && endCondition;
@@ -112,18 +118,21 @@ export default function AutoDepositScreen() {
             <CaretRight size={16} color={secondaryColor} weight="bold" />
           </Pressable>
 
-          <View style={[styles.bucketPill, { backgroundColor: surfaceColor }]}>
-            <View style={[styles.pillIcon, { backgroundColor: targetBucket.isMain ? targetPalette.light : targetPalette.main }]}>
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setToPickerVisible(true); }}
+            style={[styles.bucketPill, { backgroundColor: surfaceColor }]}
+          >
+            <View style={[styles.pillIcon, { backgroundColor: currentTarget.isMain ? targetPalette.light : targetPalette.main }]}>
               <TargetIcon size={14} color={targetPalette.cardText} weight="fill" />
             </View>
             <View style={styles.pillInfo}>
-              <Text style={[styles.pillName, { color: textColor }]}>{targetBucket.name}</Text>
+              <Text style={[styles.pillName, { color: textColor }]}>{currentTarget.name}</Text>
               <Text style={[styles.pillSub, { color: secondaryColor }]}>
-                {formatCurrency(targetBucket.currentAmount)} of {formatCurrency(targetBucket.targetAmount)}
+                {formatCurrency(currentTarget.currentAmount)} of {formatCurrency(currentTarget.targetAmount)}
               </Text>
             </View>
-            <CaretRight size={16} color={`${secondaryColor}40`} weight="bold" />
-          </View>
+            <CaretRight size={16} color={secondaryColor} weight="bold" />
+          </Pressable>
 
           <View style={styles.arrowOverlay}>
             <View style={[styles.arrowCircle, { backgroundColor: surfaceColor, borderColor: bgColor }]}>
@@ -165,20 +174,25 @@ export default function AutoDepositScreen() {
       <View style={[styles.bottomButton, { paddingBottom: insets.bottom + 8 }]}>
         <Pressable
           onPress={async () => {
-            if (!isValid || saving || !targetBucket) return;
+            if (!isValid || saving || !currentTarget) return;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             setSaving(true);
             try {
               await createRule({
                 sourceBucketId: fromBucketId,
-                targetBucketId: targetBucket.id,
+                targetBucketId: currentTarget.id,
                 amount: Math.round(parseFloat(parseAmountInput(amount)) * 100),
                 frequency: frequency!,
                 endCondition: endCondition!,
               });
               router.back();
             } catch (err: any) {
-              alert(err.message ?? 'Failed to create auto-deposit');
+              const msg = String(err.message ?? '');
+              if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('one_per_target')) {
+                Alert.alert('Already set up', 'This bucket already has an auto-deposit. You can edit it from the bucket details.', [{ text: 'OK' }]);
+              } else {
+                Alert.alert('Something went wrong', 'Could not set up auto-deposit. Please try again.', [{ text: 'OK' }]);
+              }
             } finally {
               setSaving(false);
             }
@@ -199,6 +213,21 @@ export default function AutoDepositScreen() {
         buckets={availableFromBuckets}
         selectedId={fromBucketId}
         onSelect={(id) => { setFromBucketId(id); setFromPickerVisible(false); }}
+      />
+
+      {/* To picker */}
+      <BucketPickerModal
+        visible={toPickerVisible}
+        onClose={() => setToPickerVisible(false)}
+        title="Select bucket"
+        buckets={availableToBuckets}
+        selectedId={toBucketId}
+        onSelect={(id) => {
+          setToBucketId(id);
+          setToPickerVisible(false);
+          // If from and to are the same, swap from to main
+          if (id === fromBucketId) setFromBucketId(mainBucket?.id ?? '');
+        }}
       />
 
       {/* Frequency picker */}

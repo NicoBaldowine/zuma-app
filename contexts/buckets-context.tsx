@@ -4,6 +4,7 @@ import { getCurrentUserId } from '@/lib/auth/get-user-id';
 import { fetchBuckets, createBucket as apiBucketCreate, updateBucket as apiBucketUpdate, deleteBucket as apiBucketDelete, ensureMainBucket } from '@/lib/api/buckets';
 import { moveFunds as apiMoveFunds, addFunds as apiAddFunds } from '@/lib/api/transfers';
 import { createTransaction } from '@/lib/api/transactions';
+import { deleteAutoDepositForBucket } from '@/lib/api/auto-deposits';
 import { computeWallet } from '@/lib/api/wallet';
 import { useCelebration } from './celebration-context';
 import { useAuth } from './auth-context';
@@ -212,7 +213,8 @@ export function BucketsProvider({ children }: { children: React.ReactNode }) {
       before.currentAmount < before.targetAmount &&
       after.currentAmount >= after.targetAmount
     ) {
-      // Bucket just completed!
+      // Bucket just completed — cancel any auto-deposit
+      await deleteAutoDepositForBucket(after.id).catch(() => {});
       await createTransaction({
         bucketId: after.id,
         type: 'bucket_completed',
@@ -223,17 +225,21 @@ export function BucketsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [celebrate]);
 
+  // Use a ref so moveFunds/addFunds always see the latest buckets
+  const bucketsRef = useRef(buckets);
+  bucketsRef.current = buckets;
+
   const moveFundsFn = useCallback(async (fromBucketId: string, toBucketId: string, amount: number) => {
-    const prevBuckets = buckets;
+    const prevBuckets = bucketsRef.current;
     await apiMoveFunds({ fromBucketId, toBucketId, amount });
     await checkCompletion(toBucketId, prevBuckets);
-  }, [buckets, checkCompletion]);
+  }, [checkCompletion]);
 
   const addFundsFn = useCallback(async (bucketId: string, amount: number, description?: string) => {
-    const prevBuckets = buckets;
+    const prevBuckets = bucketsRef.current;
     await apiAddFunds({ bucketId, amount, description });
     await checkCompletion(bucketId, prevBuckets);
-  }, [buckets, checkCompletion]);
+  }, [checkCompletion]);
 
   return (
     <BucketsContext.Provider

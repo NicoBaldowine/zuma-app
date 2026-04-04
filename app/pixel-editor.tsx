@@ -98,17 +98,20 @@ export default function PixelEditorScreen() {
   };
 
   const handleSave = async () => {
+    console.log('[PixelEditor] handleSave called');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setPixelIcon(grid);
+    console.log('[PixelEditor] setPixelIcon done, calling dismiss');
     saveCustomIcon(grid).catch(() => {});
-    router.back();
+    router.dismiss();
+    console.log('[PixelEditor] dismiss called');
   };
 
   return (
     <View style={[styles.root, { backgroundColor: bgColor, paddingTop: insets.top }]}>
       <View style={[styles.stickyClose, { marginTop: 4 }]}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.dismiss()}
           style={[styles.closeCircle, { backgroundColor: surfaceColor }]}
         >
           <X size={18} color={secondaryColor} weight="bold" />

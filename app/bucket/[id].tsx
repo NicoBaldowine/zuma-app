@@ -15,6 +15,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { BucketCardExpanded, BucketDetailContent, BottomActions, StatsRow, AutoDepositCard, VirtualCardDetail } from '@/components/bucket';
 import { useBuckets } from '@/contexts/buckets-context';
 import { useAutoDeposits } from '@/contexts/auto-deposits-context';
+import { CelebrationOverlay } from '@/contexts/celebration-context';
 import { fetchCardForBucket } from '@/lib/api/virtual-cards';
 import { hasLinkedAccount } from '@/lib/api/plaid';
 import type { VirtualCard } from '@/types';
@@ -69,6 +70,7 @@ export default function BucketDetailScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: palette.dark }]}>
+      <CelebrationOverlay />
       <StatusBar style={isLightBg ? 'dark' : 'light'} />
 
       {/* Close button */}

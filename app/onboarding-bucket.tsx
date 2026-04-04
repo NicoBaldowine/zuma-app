@@ -1,9 +1,8 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
   Text,
-  TextInput,
   Pressable,
   ScrollView,
   Modal,
@@ -13,7 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { X, Check, CaretDown } from 'phosphor-react-native';
+import { X, Check } from 'phosphor-react-native';
 import Animated, { FadeInDown, FadeInUp, FadeOutDown, Easing } from 'react-native-reanimated';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -22,7 +21,10 @@ import { BucketColors } from '@/constants/bucket-colors';
 import { getBucketIcon } from '@/utils/bucket-icons';
 import { getEmojiName } from '@/utils/emoji-list';
 import { IconPickerModal } from '@/components/shared/icon-picker-modal';
+import { FormField, FormSelect } from '@/components/shared';
 import { getCustomColor, clearCustomColor, onCustomColorChange } from '@/utils/custom-color-store';
+import { getPixelIcon, clearPixelIcon, onPixelIconChange } from '@/utils/pixel-icon-store';
+import { PixelIcon } from '@/components/shared/pixel-icon';
 import { formatAmountInput, parseAmountInput } from '@/utils/format';
 import { setPendingBucket } from '@/utils/onboarding-store';
 import type { BucketColorKey } from '@/types';
@@ -32,24 +34,14 @@ const COLOR_KEYS: BucketColorKey[] = [
   'lemon', 'lime', 'sage', 'mint', 'teal',
   'sky', 'ocean', 'indigo', 'lavender', 'lilac',
   'berry', 'rose', 'blush', 'mauve', 'slate',
+  'clay', 'denim', 'olive', 'wine', 'sand',
 ];
 
 const PLACEHOLDER_EXAMPLES = [
-  'Trip to Japan',
-  'Nintendo Switch 2',
-  'New tattoo fund',
-  'Concert tickets',
-  'Sneaker drop',
-  'Festival fund',
-  'Birthday party',
-  'New MacBook',
-  'Coachella 2026',
-  'Road trip fund',
-  'Skincare haul',
-  'PS5 games',
-  'Dream apartment',
-  'Netflix & chill fund',
-  'Starbucks runs',
+  'Trip to Japan', 'Nintendo Switch 2', 'New tattoo fund', 'Concert tickets',
+  'Sneaker drop', 'Festival fund', 'Birthday party', 'New MacBook',
+  'Coachella 2026', 'Road trip fund', 'Skincare haul', 'PS5 games',
+  'Dream apartment', 'Netflix & chill fund', 'Starbucks runs',
 ];
 
 export default function OnboardingBucketScreen() {
@@ -94,6 +86,23 @@ export default function OnboardingBucketScreen() {
     });
   }, []);
 
+  // Listen for pixel icon creation
+  useEffect(() => {
+    console.log('[OnboardingBucket] pixel icon listener registered');
+    return onPixelIconChange(() => {
+      console.log('[OnboardingBucket] pixel icon change detected');
+      const data = getPixelIcon();
+      console.log('[OnboardingBucket] pixel data:', data ? 'exists' : 'null');
+      if (data) {
+        setSelectedIcon(JSON.stringify(data));
+        setIconType('pixel');
+        setIconPickerVisible(false);
+        clearPixelIcon();
+        console.log('[OnboardingBucket] pixel icon set successfully');
+      }
+    });
+  }, []);
+
   const isValid = name.trim().length > 0 && amount.trim().length > 0 && selectedIcon && selectedColor;
   const SelectedIconComponent = selectedIcon ? getBucketIcon(selectedIcon) : null;
   const selectedPalette = selectedColor ? BucketColors[selectedColor] : null;
@@ -123,95 +132,70 @@ export default function OnboardingBucketScreen() {
           entering={FadeInDown.duration(400).delay(150).easing(Easing.out(Easing.cubic))}
           style={styles.fields}
         >
-          <View style={[styles.field, { backgroundColor: surfaceColor }]}>
-            {name.length > 0 && (
-              <Text style={[styles.fieldLabel, { color: secondaryColor }]}>Bucket name</Text>
-            )}
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={[styles.fieldInput, { color: textColor }]}
-                placeholder=""
-                value={name}
-                onChangeText={setName}
-                autoFocus
-              />
-              {name.length === 0 && (
-                <View style={styles.placeholderOverlay} pointerEvents="none">
-                  <Text style={[styles.fieldPlaceholderStatic, { color: secondaryColor }]}>
-                    Bucket name
-                  </Text>
-                  <Animated.Text
-                    key={placeholderIndex}
-                    entering={FadeInUp.duration(300)}
-                    exiting={FadeOutDown.duration(300)}
-                    style={[styles.fieldPlaceholderExample, { color: `${secondaryColor}60` }]}
-                  >
-                    e.g. {PLACEHOLDER_EXAMPLES[placeholderIndex]}
-                  </Animated.Text>
-                </View>
-              )}
-            </View>
-          </View>
-          <View style={[styles.field, { backgroundColor: surfaceColor }]}>
-            {amount.length > 0 && (
-              <Text style={[styles.fieldLabel, { color: secondaryColor }]}>Target amount</Text>
-            )}
-            <TextInput
-              style={[styles.fieldInput, { color: textColor }]}
-              placeholder="Target amount"
-              placeholderTextColor={secondaryColor}
-              value={amount}
-              onChangeText={(v) => setAmount(formatAmountInput(v))}
-              keyboardType="numeric"
-            />
-          </View>
+          <FormField
+            label="Bucket name"
+            value={name}
+            onChangeText={setName}
+            autoFocus
+            customPlaceholder={
+              <>
+                <Text style={[styles.placeholderStatic, { color: secondaryColor }]}>
+                  Bucket name
+                </Text>
+                <Animated.Text
+                  key={placeholderIndex}
+                  entering={FadeInUp.duration(300)}
+                  exiting={FadeOutDown.duration(300)}
+                  style={[styles.placeholderExample, { color: `${secondaryColor}60` }]}
+                >
+                  e.g. {PLACEHOLDER_EXAMPLES[placeholderIndex]}
+                </Animated.Text>
+              </>
+            }
+          />
+          <FormField
+            label="Target amount"
+            value={amount}
+            onChangeText={(v) => setAmount(formatAmountInput(v))}
+            keyboardType="numeric"
+          />
 
           <View style={styles.pickersRow}>
-            <Pressable
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setIconPickerVisible(true); }}
-              style={[styles.input, styles.pickerButton, { backgroundColor: surfaceColor }]}
-            >
-              <View style={styles.pickerInner}>
-                {selectedIcon ? (
-                  <View style={styles.pickerSelected}>
-                    <View style={[styles.pickerIconCircle, { backgroundColor: 'rgba(0,0,0,0.08)' }]}>
-                      {iconType === 'emoji' ? (
-                        <Text style={{ fontSize: 18 }}>{selectedIcon}</Text>
-                      ) : (
-                        SelectedIconComponent && <SelectedIconComponent size={18} color={textColor} weight="fill" />
-                      )}
-                    </View>
-                    <Text style={[styles.pickerLabel, { color: textColor }]} numberOfLines={1}>
-                      {iconType === 'emoji' ? getEmojiName(selectedIcon!) : selectedIcon}
-                    </Text>
+            <FormSelect
+              label="Select icon"
+              value={selectedIcon ? (iconType === 'pixel' ? 'Custom' : iconType === 'emoji' ? getEmojiName(selectedIcon) : selectedIcon) : null}
+              onPress={() => setIconPickerVisible(true)}
+              style={{ flex: 1 }}
+              selectedIcon={
+                selectedIcon ? (
+                  <View style={[styles.pickerIconCircle, { backgroundColor: 'rgba(0,0,0,0.08)' }]}>
+                    {iconType === 'pixel' ? (
+                      <PixelIcon data={JSON.parse(selectedIcon)} size={18} color={textColor} />
+                    ) : iconType === 'emoji' ? (
+                      <Text style={{ fontSize: 18 }}>{selectedIcon}</Text>
+                    ) : (
+                      SelectedIconComponent && <SelectedIconComponent size={18} color={textColor} weight="fill" />
+                    )}
                   </View>
-                ) : (
-                  <Text style={[styles.pickerPlaceholder, { color: secondaryColor }]}>Select icon</Text>
-                )}
-                <CaretDown size={14} color={secondaryColor} weight="bold" />
-              </View>
-            </Pressable>
+                ) : undefined
+              }
+            />
 
-            <Pressable
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setColorPickerVisible(true); }}
-              style={[styles.input, styles.pickerButton, { backgroundColor: surfaceColor }]}
-            >
-              <View style={styles.pickerInner}>
-                {selectedColor ? (
-                  <View style={styles.pickerSelected}>
-                    <View style={[styles.colorDot, { backgroundColor: displayColor }]} />
-                    <Text style={[styles.pickerLabel, { color: textColor }]}>
-                      {selectedColor === 'custom' ? 'Custom' : selectedColor}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={[styles.pickerPlaceholder, { color: secondaryColor }]}>Select color</Text>
-                )}
-                <CaretDown size={14} color={secondaryColor} weight="bold" />
-              </View>
-            </Pressable>
+            <FormSelect
+              label="Select color"
+              value={selectedColor ? (selectedColor === 'custom' ? 'Custom' : selectedColor) : null}
+              onPress={() => setColorPickerVisible(true)}
+              style={{ flex: 1 }}
+              selectedIcon={
+                selectedColor ? (
+                  <View style={[styles.colorDot, { backgroundColor: displayColor }]} />
+                ) : undefined
+              }
+            />
           </View>
         </Animated.View>
+
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       <View style={[styles.bottomButton, { paddingBottom: insets.bottom + 8 }]}>
@@ -219,7 +203,6 @@ export default function OnboardingBucketScreen() {
           onPress={() => {
             if (!isValid) return;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            // Store bucket data for creation after auth
             setPendingBucket({
               name: name.trim(),
               icon: selectedIcon!,
@@ -244,6 +227,14 @@ export default function OnboardingBucketScreen() {
         selectedIcon={selectedIcon}
         selectedType={iconType}
         onSelect={(icon, type) => { Haptics.selectionAsync(); setSelectedIcon(icon); setIconType(type); setIconPickerVisible(false); }}
+        onCreateCustom={() => {
+          console.log('[OnboardingBucket] onCreateCustom called');
+          setIconPickerVisible(false);
+          setTimeout(() => {
+            console.log('[OnboardingBucket] navigating to pixel-editor');
+            router.push('/pixel-editor');
+          }, 300);
+        }}
       />
       <ColorPickerModal
         visible={colorPickerVisible}
@@ -303,11 +294,7 @@ function ColorPickerModal({ visible, onClose, selectedColor, onSelect, onCustomP
             );
           })}
 
-          {/* Custom color */}
-          <Pressable
-            onPress={onCustomPress}
-            style={styles.colorItem}
-          >
+          <Pressable onPress={onCustomPress} style={styles.colorItem}>
             <View style={[styles.colorCircle, styles.customCircle, { borderColor: secondaryColor }]}>
               <Text style={[styles.customPlus, { color: secondaryColor }]}>+</Text>
             </View>
@@ -345,68 +332,17 @@ const styles = StyleSheet.create({
   fields: {
     gap: 12,
   },
-  field: {
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    minHeight: 56,
-    justifyContent: 'center',
-  },
-  fieldLabel: {
-    fontSize: 12,
-    fontFamily: Fonts.regular,
-    marginBottom: 2,
-  },
-  fieldInput: {
-    fontSize: 16,
-    fontFamily: Fonts.medium,
-    letterSpacing: 0,
-    padding: 0,
-  },
-  inputWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  placeholderOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  fieldPlaceholderStatic: {
+  placeholderStatic: {
     fontSize: 16,
     fontFamily: Fonts.medium,
   },
-  fieldPlaceholderExample: {
+  placeholderExample: {
     fontSize: 16,
     fontFamily: Fonts.medium,
-  },
-  input: {
-    height: 56,
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    fontSize: 16,
-    fontFamily: Fonts.medium,
-    justifyContent: 'center',
   },
   pickersRow: {
     flexDirection: 'row',
     gap: 12,
-  },
-  pickerButton: {
-    flex: 1,
-  },
-  pickerInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pickerSelected: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
   },
   pickerIconCircle: {
     width: 32,
@@ -414,15 +350,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pickerLabel: {
-    fontSize: 14,
-    fontFamily: Fonts.medium,
-    textTransform: 'capitalize',
-  },
-  pickerPlaceholder: {
-    fontSize: 16,
-    fontFamily: Fonts.medium,
   },
   colorDot: {
     width: 24,
@@ -473,30 +400,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 8,
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    height: 44,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: Fonts.medium,
-    height: '100%',
-  },
-  iconGrid: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  iconRow: {
-    marginBottom: 8,
-    justifyContent: 'space-between',
-  },
   colorGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -530,30 +433,5 @@ const styles = StyleSheet.create({
   customPlus: {
     fontSize: 20,
     fontFamily: Fonts.medium,
-  },
-  tabRow: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    marginBottom: 16,
-    gap: 8,
-  },
-  tab: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  tabText: {
-    fontSize: 14,
-    fontFamily: Fonts.semiBold,
-  },
-  emojiOption: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emojiText: {
-    fontSize: 26,
   },
 });

@@ -20,11 +20,12 @@ type IconPickerModalProps = {
   selectedIcon: string | null;
   selectedType: 'icon' | 'emoji' | 'pixel';
   onSelect: (icon: string, type: 'icon' | 'emoji' | 'pixel') => void;
+  onCreateCustom?: () => void;
 };
 
 type Tab = 'icons' | 'emojis' | 'create';
 
-export function IconPickerModal({ visible, onClose, selectedIcon, selectedType, onSelect }: IconPickerModalProps) {
+export function IconPickerModal({ visible, onClose, selectedIcon, selectedType, onSelect, onCreateCustom }: IconPickerModalProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const bgColor = useThemeColor({}, 'background');
@@ -79,9 +80,13 @@ export function IconPickerModal({ visible, onClose, selectedIcon, selectedType, 
   }, [search, tab]);
 
   const handleCreateNew = useCallback(() => {
-    onClose();
-    setTimeout(() => router.push('/pixel-editor'), 300);
-  }, [onClose, router]);
+    if (onCreateCustom) {
+      onCreateCustom();
+    } else {
+      onClose();
+      setTimeout(() => router.push('/pixel-editor'), 300);
+    }
+  }, [onClose, onCreateCustom, router]);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>

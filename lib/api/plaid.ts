@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { supabase } from '../supabase';
 import { getCurrentUserId } from '../auth/get-user-id';
 
@@ -6,6 +7,7 @@ export async function createLinkToken(): Promise<string> {
 
   const response = await supabase.functions.invoke('create-link-token', {
     headers: { Authorization: `Bearer ${session?.access_token}` },
+    body: { platform: Platform.OS },
   });
 
   if (response.error) throw new Error(response.error.message);

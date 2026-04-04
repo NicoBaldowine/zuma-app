@@ -12,6 +12,7 @@ export async function signInWithGoogle() {
     options: {
       redirectTo,
       skipBrowserRedirect: true,
+      queryParams: { prompt: 'select_account' },
     },
   });
 

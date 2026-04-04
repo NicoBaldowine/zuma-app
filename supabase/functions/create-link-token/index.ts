@@ -34,19 +34,42 @@ serve(async (req) => {
       });
     }
 
+    // Determine platform from request body (optional)
+    let platform = 'ios';
+    try {
+      const body = await req.json();
+      if (body?.platform) platform = body.platform;
+    } catch {
+      // No body or invalid JSON — default to iOS
+    }
+
+    // Build link token request with platform-specific fields
+    const linkTokenRequest: Record<string, unknown> = {
+      client_id: Deno.env.get('PLAID_CLIENT_ID'),
+      secret: Deno.env.get('PLAID_SECRET'),
+      user: { client_user_id: user.id },
+      client_name: 'Zuma',
+      products: ['auth', 'transactions'],
+      country_codes: ['US'],
+      language: 'en',
+    };
+
+    // iOS requires redirect_uri for OAuth; Android requires android_package_name
+    if (platform === 'android') {
+      linkTokenRequest.android_package_name = 'com.nicobaldovino.zumaapp';
+    } else {
+      // redirect_uri must be a universal link registered in the Plaid Dashboard
+      const redirectUri = Deno.env.get('PLAID_REDIRECT_URI');
+      if (redirectUri) {
+        linkTokenRequest.redirect_uri = redirectUri;
+      }
+    }
+
     // Create link token via Plaid API
     const response = await fetch(`${PLAID_BASE_URL}/link/token/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: Deno.env.get('PLAID_CLIENT_ID'),
-        secret: Deno.env.get('PLAID_SECRET'),
-        user: { client_user_id: user.id },
-        client_name: 'Zuma',
-        products: ['auth', 'transactions'],
-        country_codes: ['US'],
-        language: 'en',
-      }),
+      body: JSON.stringify(linkTokenRequest),
     });
 
     const data = await response.json();

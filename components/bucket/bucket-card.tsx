@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Pressable, View, Text, Image } from 'react-native';
-import { Repeat, CreditCard } from 'phosphor-react-native';
+import { Repeat, CreditCard, Confetti } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
 import { PixelIcon } from '@/components/shared/pixel-icon';
 
@@ -23,13 +23,18 @@ export const BucketCard = React.memo(function BucketCard({ bucket, hasAutoDeposi
   const colorScheme = useColorScheme();
   const palette = getBucketPalette(bucket.colorKey, colorScheme, bucket.customColor);
   const progress = calcProgress(bucket.currentAmount, bucket.targetAmount);
+  const isCompleted = !bucket.isMain && bucket.targetAmount > 0 && bucket.currentAmount >= bucket.targetAmount;
   const Icon = useMemo(() => bucket.iconType === 'icon' ? getBucketIcon(bucket.icon) : null, [bucket.icon, bucket.iconType]);
+
+  const showBadge = hasVirtualCard || hasAutoDeposit || isCompleted;
 
   const content = (
     <View style={[styles.card, { backgroundColor: palette.main }, isLast && styles.cardLast]}>
-      {(hasVirtualCard || hasAutoDeposit) && (
+      {showBadge && (
         <View style={styles.topBadge}>
-          {hasVirtualCard ? (
+          {isCompleted ? (
+            <Confetti size={12} color={palette.cardText} weight="fill" />
+          ) : hasVirtualCard ? (
             <CreditCard size={12} color={palette.cardText} weight="bold" />
           ) : (
             <Repeat size={12} color={palette.cardText} weight="bold" />

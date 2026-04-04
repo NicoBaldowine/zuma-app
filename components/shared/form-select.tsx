@@ -36,9 +36,6 @@ export function FormSelect({
       onPress={handlePress}
       style={[styles.container, { backgroundColor: surfaceColor }, style]}
     >
-      {hasValue && (
-        <Text style={[styles.label, { color: secondaryColor }]}>{label}</Text>
-      )}
       <View style={styles.row}>
         {hasValue ? (
           <View style={styles.selectedContent}>
